@@ -3,6 +3,10 @@ import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
 /**
+
+	To Dos:
+		> Implement enums for channel states
+
 	What is a vendor proof?
 		> A vendor proof is a message signed by a vendor, whose signature data is submitted by the 
 			channel opener to verify the vendor
@@ -22,7 +26,7 @@ contract PaymentChannels is Administration {
 	struct ChannelStruct {
 		address purchaser;
 		address vendor;
-		uint256 value;
+		uint256 channelValue;
 		uint256 autoClosureDate;
 		bytes32 channelId;
 		bool	opened;
@@ -58,20 +62,22 @@ contract PaymentChannels is Administration {
 		bytes32 _r,
 		bytes32 _s,
 		address _vendor,
-		uint256 _value)
+		uint256 _channelValue,
+		uint256 _durationInDays)
 		public
 		payable
 		returns (bool)
 	{
-		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
+		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
 		require(!channelIds[channelId]);
-		require(msg.value > 0 && msg.value == _value);
+		require(msg.value > 0 && msg.value == _channelValue);
 		channelIds[channelId] = true;
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
+		channels[channelId].channelValue = _channelValue;
+		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days;
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
-		channels[channelId].autoClosureDate = now + 10 days;
 		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
 		require(submitVendorProof(_h, _v, _r, _s, _vendor, _value));
