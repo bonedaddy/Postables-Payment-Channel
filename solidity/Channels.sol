@@ -26,8 +26,11 @@ contract PaymentChannels is Administration {
 	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
 
-	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
+	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
+	event ChannelTimedOut(bytes32 indexed _channeId);
+	event PurchaserProofSubmitted(bytes32 indexed _channelId));
+	event VendorProofSubmitted(bytes32 indexd _channelId);
 
 	function openChannel(
 		address _vendor,
@@ -44,7 +47,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
 		channels[channelId].autoClosureDate = now + 10 days;
-		ChannelOpened(msg.sender, _vendor, channelId);
+		ChannelOpened(channelId);
 		return true;
 	}
 
@@ -65,6 +68,7 @@ contract PaymentChannels is Administration {
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == _purchaser);
 		channels[channelId].proofSubmitted[signer] = true;
+		PurchaserProofSubmitted(channelId);
 		return true;
 	}
 
@@ -85,6 +89,7 @@ contract PaymentChannels is Administration {
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == _vendor);
 		channels[channelId].proofSubmitted[signer] = true; 
+		VendorProofSubmitted(channelId);
 		return true;
 	}
 
