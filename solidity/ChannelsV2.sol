@@ -32,11 +32,8 @@ contract PaymentChannels is Administration {
 		uint256 channelValue;
 		uint256 autoClosureDate;
 		bytes32 channelId;
-		bool	opened;
-		bool	closed;
-		bool	timedOut;
 		mapping (address => bool) proofSubmitted;
-		ChannelSates state;
+		ChannelStates state;
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
@@ -47,8 +44,8 @@ contract PaymentChannels is Administration {
 	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelTimedOut(bytes32 indexed _channeId);
-	event PurchaserProofSubmitted(bytes32 indexed _channelId));
-	event VendorProofSubmitted(bytes32 indexd _channelId);
+	event PurchaserProofSubmitted(bytes32 indexed _channelId);
+	event VendorProofSubmitted(bytes32 indexed _channelId);
 
 	function () payable {}
 
@@ -79,13 +76,12 @@ contract PaymentChannels is Administration {
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].channelValue = _channelValue;
-		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days;
+		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days);
 		channels[channelId].channelId = channelId;
-		channels[channelId].opened = true;
 		channels[channelId].state = defaultState;
 		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
-		require(submitVendorProof(_h, _v, _r, _s, _vendor, _value));
+		require(submitVendorProof(_h, _v, _r, _s, _vendor, _channelValue));
 		return true;
 	}
 
@@ -101,7 +97,6 @@ contract PaymentChannels is Administration {
 	{
 		bytes32 channelId = keccak256(_purchaser, msg.sender, _channelValue);
 		require(channels[channelId].vendor == msg.sender);
-		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
 		require(_purchaser == channels[channelId].purchaser);
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == _purchaser);
@@ -125,7 +120,6 @@ contract PaymentChannels is Administration {
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
 		require(channels[channelId].purchaser == msg.sender);
-		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
 		require(_vendor == channels[channelId].vendor);
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == _vendor);
@@ -143,15 +137,13 @@ contract PaymentChannels is Administration {
 		public
 		returns (bool)
 	{
-		require(!channels[_channelId].closed);
 		address purchaser = channels[_channelId].purchaser;
 		require(msg.sender == channels[_channelId].vendor);
 		require(channels[_channelId].proofSubmitted[purchaser]);
 		require(channels[_channelId].proofSubmitted[msg.sender]);
-		channels[_channelId].closed = true;
 		ChannelClosed(_channelId);
 		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
-		msg.sender.transfer(channels[_channelId].value);
+		msg.sender.transfer(channels[_channelId].channelValue);
 		return true;
 	}
 
@@ -168,16 +160,12 @@ contract PaymentChannels is Administration {
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
 		require(channels[channelId].purchaser == msg.sender);
-		require(!channels[channelId].closed);
-		require(!channels[channelId].timedOut);
 		require(deposits[msg.sender][channelId] > 0);
 		require(now > channels[channelId].autoClosureDate);
 		uint256 deposit = deposits[msg.sender][channelId];
 		deposits[msg.sender][channelId] = 0;
-		channels[channelId].closed = true;
-		channels[channelId].timedOut = true;
 		ChannelTimedOut(channelId);
-		msg.semder.transfer(deposit);
+		msg.sender.transfer(deposit);
 		return true;
 	}
 

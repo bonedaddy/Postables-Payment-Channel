@@ -23,9 +23,6 @@ contract PaymentChannels is Administration {
 	uint256 public channelFee;
 	uint256 private channelCount;
 
-	enum ChannelStates { Proposed, Accepted, Opened, Closed, Disconnected }
-	ChannelStates public defaultState = ChannelStates.Proposed;
-
 	struct ChannelStruct {
 		address purchaser;
 		address vendor;
@@ -36,7 +33,6 @@ contract PaymentChannels is Administration {
 		bool	closed;
 		bool	timedOut;
 		mapping (address => bool) proofSubmitted;
-		ChannelSates state;
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
@@ -47,8 +43,8 @@ contract PaymentChannels is Administration {
 	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelTimedOut(bytes32 indexed _channeId);
-	event PurchaserProofSubmitted(bytes32 indexed _channelId));
-	event VendorProofSubmitted(bytes32 indexd _channelId);
+	event PurchaserProofSubmitted(bytes32 indexed _channelId);
+	event VendorProofSubmitted(bytes32 indexed _channelId);
 
 	function () payable {}
 
@@ -79,13 +75,12 @@ contract PaymentChannels is Administration {
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].channelValue = _channelValue;
-		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days;
+		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days);
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
-		channels[channelId].state = defaultState;
 		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
-		require(submitVendorProof(_h, _v, _r, _s, _vendor, _value));
+		require(submitVendorProof(_h, _v, _r, _s, _vendor, _channelValue));
 		return true;
 	}
 
@@ -151,7 +146,7 @@ contract PaymentChannels is Administration {
 		channels[_channelId].closed = true;
 		ChannelClosed(_channelId);
 		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
-		msg.sender.transfer(channels[_channelId].value);
+		msg.sender.transfer(channels[_channelId].channelValue);
 		return true;
 	}
 
@@ -177,7 +172,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].closed = true;
 		channels[channelId].timedOut = true;
 		ChannelTimedOut(channelId);
-		msg.semder.transfer(deposit);
+		msg.sender.transfer(deposit);
 		return true;
 	}
 
