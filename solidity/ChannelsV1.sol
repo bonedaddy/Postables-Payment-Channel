@@ -23,6 +23,9 @@ contract PaymentChannels is Administration {
 	uint256 public channelFee;
 	uint256 private channelCount;
 
+	enum ChannelStates { Proposed, Accepted, Opened, Closed, Disconnected }
+	ChannelStates public defaultState = ChannelStates.Proposed;
+
 	struct ChannelStruct {
 		address purchaser;
 		address vendor;
@@ -33,6 +36,7 @@ contract PaymentChannels is Administration {
 		bool	closed;
 		bool	timedOut;
 		mapping (address => bool) proofSubmitted;
+		ChannelSates state;
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
@@ -78,6 +82,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].autoClosureDate = now + (_durationInDays * 1 days;
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
+		channels[channelId].state = defaultState;
 		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
 		require(submitVendorProof(_h, _v, _r, _s, _vendor, _value));
