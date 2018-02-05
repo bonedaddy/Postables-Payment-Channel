@@ -2,12 +2,21 @@ pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
+/**
+	What is a vendor proof?
+		> A vendor proof is a message signed by a vendor, whose signature data is submitted by the 
+			channel opener to verify the vendor
+	What is a purchaser proof?
+		> A purchaser proof is a message signed by the purchaser (channel opener), whose signature
+			is submitted by the vendor in a channel
+*/
 
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
-	
+
+	uint256 public channelFee;
 	uint256 private channelCount;
 
 	struct ChannelStruct {
@@ -23,8 +32,9 @@ contract PaymentChannels is Administration {
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
-	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
+	mapping (address => mapping (bytes32 => uint256)) private deposits;
+	mapping (bytes32 => ChannelStruct) public channels;
 
 	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
@@ -32,22 +42,39 @@ contract PaymentChannels is Administration {
 	event PurchaserProofSubmitted(bytes32 indexed _channelId));
 	event VendorProofSubmitted(bytes32 indexd _channelId);
 
+	function () payable {}
+
+
+	/**
+		* Channel opener must also submit the vendor proof. This is so that a malicious channel opener
+			is unable to withold the proof to prevent a vendor from being paid
+		* Subsequently, this also allows the channel opener to with-hold submitting their signature to the
+			vendor should the vendor prove to be malicious, they will be entitled to close their timeout their
+			channel, pending a wait period 
+	*/
 	function openChannel(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
 		address _vendor,
 		uint256 _value)
 		public
+		payable
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
 		require(!channelIds[channelId]);
-		require(!channels[channelId].opened);
+		require(msg.value > 0 && msg.value == _value);
 		channelIds[channelId] = true;
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
 		channels[channelId].autoClosureDate = now + 10 days;
+		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
+		require(submitVendorProof(_h, _v, _r, _s, _vendor, _value));
 		return true;
 	}
 
@@ -72,6 +99,9 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	/**
+		@dev Must be supplied by channel opener when the channel is open
+	*/
 	function submitVendorProof(
 		bytes32 _h,
 		uint8   _v,
@@ -79,7 +109,7 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		address _vendor,
 		uint256 _channelValue)
-		public
+		internal
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
@@ -94,7 +124,8 @@ contract PaymentChannels is Administration {
 	}
 
 	/**
-		@dev Used by the vendor "recipient" to withdraw funds from the channel so long as both proofs are valid
+		* Used by the vendor "recipient" to withdraw funds from the channel so long as both proofs are valid
+		* Also closes the channel (one of two ways)
 	*/
 	function vendorWithdrawFunds(
 		bytes32 _channelId)
@@ -114,7 +145,9 @@ contract PaymentChannels is Administration {
 	}
 
 	/**
-		@dev Callable by channel opener if now proofs have been submitted wwhen the closure date is past
+		* Callable by channel opener if now proofs have been submitted wwhen the closure date is past
+		* Also closes the channel (one of two ways to)
+		* TO DO: Implement wait period
 	*/
 	function timeoutChannel(
 		address _vendor,
@@ -126,25 +159,14 @@ contract PaymentChannels is Administration {
 		require(channels[channelId].purchaser == msg.sender);
 		require(!channels[channelId].closed);
 		require(!channels[channelId].timedOut);
+		require(deposits[msg.sender][channelId] > 0);
 		require(now > channels[channelId].autoClosureDate);
+		uint256 deposit = deposits[msg.sender][channelId];
+		deposits[msg.sender][channelId] = 0;
 		channels[channelId].closed = true;
 		channels[channelId].timedOut = true;
-		return true;
-	}
-
-
-	/**
-		@dev Lets the channel opener withdraw their funds if the channel timesout
-	*/
-	function openerWithdrawFunds(
-		address _vendor,
-		uint256 _value)
-		public
-		returns (bool)
-	{
-		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
-		require(channels[channelId].closed == true && channels[channelId].timedOut == true);
-		msg.sender.transfer(_value);
+		ChannelTimedOut(channelId);
+		msg.semder.transfer(deposit);
 		return true;
 	}
 
