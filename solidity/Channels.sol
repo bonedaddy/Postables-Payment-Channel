@@ -6,7 +6,6 @@ import "./Libs/EcRecovery.sol";
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
-	using EcRecovery as ec;
 
 	
 	uint256 private channelCount;
@@ -56,7 +55,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(_purchaser, msg.sender, _channelValue);
-		require(channels[channelId].vendor == msg.sender)
+		require(channels[channelId].vendor == msg.sender);
 		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
 		require(_purchaser == channels[channelId].purchaser);
 		address signer = ecrecover(_h, _v, _r, _s);
@@ -85,19 +84,22 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	/**
+		@dev Used by the vendor "recipient" to withdraw funds from the channel so long as both proofs are valid
+	*/
 	function vendorWithdrawFunds(
 		bytes32 _channelId)
 		public
 		returns (bool)
 	{
-		require(!channels[channelId].closed);
-		address purchaser = channels[channelId].purchaser;
-		require(msg.sender == channels[channelId].vendor);
-		require(channels[channelId].proofSubmitted[purchaser]);
-		require(channels[channelId].proofSubmitted[msg.sender]);
-		channels[channelId].closed = true;
+		require(!channels[_channelId].closed);
+		address purchaser = channels[_channelId].purchaser;
+		require(msg.sender == channels[_channelId].vendor);
+		require(channels[_channelId].proofSubmitted[purchaser]);
+		require(channels[_channelId].proofSubmitted[msg.sender]);
+		channels[_channelId].closed = true;
 		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
-		require(msg.sender.transfer(channels[channelId].value));
+		msg.sender.transfer(channels[_channelId].value);
 		return true;
 	}
 
