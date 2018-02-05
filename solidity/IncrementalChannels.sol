@@ -11,7 +11,7 @@ import "./Libs/EcRecovery.sol";
 	This will also require submitting a valid proof for signature recovery
 */
 
-contract PaymentChannels is Administration {
+contract IncrementalPaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
