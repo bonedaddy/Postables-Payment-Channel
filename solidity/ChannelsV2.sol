@@ -71,7 +71,7 @@ contract PaymentChannels is Administration {
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
 		require(!channelIds[channelId]);
-		require(msg.value > 0 && msg.value == _channelValue);
+		//require(msg.value > 0 && msg.value == _channelValue);
 		channelIds[channelId] = true;
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
@@ -81,7 +81,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].state = defaultState;
 		deposits[msg.sender][channelId] = msg.value;
 		ChannelOpened(channelId);
-		require(submitVendorProof(_h, _v, _r, _s, _vendor, _channelValue));
+		//require(submitVendorProof(_h, _v, _r, _s, _vendor, _channelValue));
 		return true;
 	}
 
@@ -115,7 +115,7 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		address _vendor,
 		uint256 _channelValue)
-		internal
+		public
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
