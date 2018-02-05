@@ -23,8 +23,11 @@ contract PaymentChannels is Administration {
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
-	mapping (bytes32 => ChannelStruct) private channels;
+	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
+
+	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
+	event ChannelClosed(bytes32 indexed _channelId);
 
 	function openChannel(
 		address _vendor,
@@ -41,6 +44,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
 		channels[channelId].autoClosureDate = now + 10 days;
+		ChannelOpened(msg.sender, _vendor, channelId);
 		return true;
 	}
 
@@ -98,6 +102,7 @@ contract PaymentChannels is Administration {
 		require(channels[_channelId].proofSubmitted[purchaser]);
 		require(channels[_channelId].proofSubmitted[msg.sender]);
 		channels[_channelId].closed = true;
+		ChannelClosed(_channelId);
 		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
 		msg.sender.transfer(channels[_channelId].value);
 		return true;
