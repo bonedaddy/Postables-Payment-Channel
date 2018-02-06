@@ -29,6 +29,7 @@ contract PaymentChannels is Administration {
 	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event VendorProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
+	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 
 	function openChannel(
 		address _vendor,
@@ -50,6 +51,9 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	/**
+		Working
+	*/
 	function submitPurchaserProof(
 		bytes32 _h, // message hash signed by purchaser
 		uint8   _v,
@@ -67,9 +71,13 @@ contract PaymentChannels is Administration {
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == _purchaser);
 		channels[channelId].proofSubmitted[signer] = true;
+		PurchaserProofSubmitted(channelId, signer);
 		return true;
 	}
 
+	/**
+		working
+	*/
 	function submitVendorProof(
 		bytes32 _h,
 		uint8   _v,
@@ -81,11 +89,11 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValue);
-		//require(channels[channelId].purchaser == msg.sender);
-		//require(channels[channelId].closed == false && channels[channelId].timedOut == false);
-		//require(_vendor == channels[channelId].vendor);
+		require(channels[channelId].purchaser == msg.sender);
+		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
+		require(_vendor == channels[channelId].vendor);
 		address signer = ecrecover(_h, _v, _r, _s);
-		//require(signer == _vendor);
+		require(signer == _vendor);
 		channels[channelId].proofSubmitted[signer] = true;
 		VendorProofSubmitted(channelId, signer);
 		return true;
@@ -93,7 +101,7 @@ contract PaymentChannels is Administration {
 
 	/**
 		@dev Used by the vendor "recipient" to withdraw funds from the channel so long as both proofs are valid
-	*/
+	
 	function vendorWithdrawFunds(
 		bytes32 _channelId)
 		public
@@ -109,11 +117,10 @@ contract PaymentChannels is Administration {
 		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
 		msg.sender.transfer(channels[_channelId].value);
 		return true;
-	}
+	}*/
 
 	/**
 		@dev Callable by channel opener if now proofs have been submitted wwhen the closure date is past
-	*/
 	function timeoutChannel(
 		address _vendor,
 		uint256 _value)
@@ -128,12 +135,11 @@ contract PaymentChannels is Administration {
 		channels[channelId].closed = true;
 		channels[channelId].timedOut = true;
 		return true;
-	}
+	}*/
 
 
 	/**
 		@dev Lets the channel opener withdraw their funds if the channel timesout
-	*/
 	function openerWithdrawFunds(
 		address _vendor,
 		uint256 _value)
@@ -144,6 +150,6 @@ contract PaymentChannels is Administration {
 		require(channels[channelId].closed == true && channels[channelId].timedOut == true);
 		msg.sender.transfer(_value);
 		return true;
-	}
+	}*/
 
 }
