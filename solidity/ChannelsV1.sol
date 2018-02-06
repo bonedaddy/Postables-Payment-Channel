@@ -2,7 +2,11 @@ pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
-
+/**
+	Add message hash verificaton when submitting a second signature.
+	first signature to submit commits the message hash, subsequent signatures mush also submit a signature
+	which verifies off that message hash. This should help reduce exploitation attempts
+*/
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
