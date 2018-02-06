@@ -128,6 +128,7 @@ contract PaymentChannels is Administration {
 
 	/**
 		Used to submit purchaser proof
+		Modifier ()
 	*/
 	function submitPurchaserProof(
 		bytes32 _h,
@@ -139,16 +140,18 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
+		require(msg.sender == channels[_channelId].vendor);
 		require(channels[_channelId].state == ChannelStates.accepted);
 		channels[_channelId].state = ChannelStates.finalized;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].purchaser);
+		channels[_channelId].proofSubmitted[signer] = true;
+		PurchaserProofSubmitted(_channelId, signer);
 		return true;
 	}
 
 	/**
 		Used to submit vendor proof
-		// modifier, modification not tested yet
 	*/
 	function submitVendorProof(
 		bytes32 _h,
@@ -162,7 +165,7 @@ contract PaymentChannels is Administration {
 		require(channelIds[_channelId]);
 		// this was previously not listed, which means *ANYONE* could submit the proof which is obviously not secure
 		require(msg.sender == channels[_channelId].purchaser);
-		require(channels[_channelId].state == ChannelStates.proposed); // modified
+		require(channels[_channelId].state == ChannelStates.proposed);
 		channels[_channelId].state = ChannelStates.accepted;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].vendor);
