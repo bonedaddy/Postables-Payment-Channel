@@ -9,6 +9,7 @@ contract PaymentChannels is Administration {
 
 	
 	uint256 private channelCount;
+	bool	public	dev = true;
 
 	struct ChannelStruct {
 		address purchaser;
@@ -31,10 +32,13 @@ contract PaymentChannels is Administration {
 	event VendorProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 
+	function () public payable {}
+
 	function openChannel(
 		address _vendor,
 		uint256 _value)
 		public
+		payable
 		returns (bool)
 	{
 		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
@@ -99,57 +103,14 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	/**
-		@dev Used by the vendor "recipient" to withdraw funds from the channel so long as both proofs are valid
-	
-	function vendorWithdrawFunds(
-		bytes32 _channelId)
+	function withdrawEth()
 		public
+		onlyAdmin
 		returns (bool)
 	{
-		require(!channels[_channelId].closed);
-		address purchaser = channels[_channelId].purchaser;
-		require(msg.sender == channels[_channelId].vendor);
-		require(channels[_channelId].proofSubmitted[purchaser]);
-		require(channels[_channelId].proofSubmitted[msg.sender]);
-		channels[_channelId].closed = true;
-		ChannelClosed(_channelId);
-		// now that we have confirmed both proofs have been submitted vendor can withdraw funds
-		msg.sender.transfer(channels[_channelId].value);
+		require(dev);
+		msg.sender.transfer(this.balance);
 		return true;
-	}*/
-
-	/**
-		@dev Callable by channel opener if now proofs have been submitted wwhen the closure date is past
-	function timeoutChannel(
-		address _vendor,
-		uint256 _value)
-		public
-		returns (bool)
-	{
-		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
-		require(channels[channelId].purchaser == msg.sender);
-		require(!channels[channelId].closed);
-		require(!channels[channelId].timedOut);
-		require(now > channels[channelId].autoClosureDate);
-		channels[channelId].closed = true;
-		channels[channelId].timedOut = true;
-		return true;
-	}*/
-
-
-	/**
-		@dev Lets the channel opener withdraw their funds if the channel timesout
-	function openerWithdrawFunds(
-		address _vendor,
-		uint256 _value)
-		public
-		returns (bool)
-	{
-		bytes32 channelId = keccak256(msg.sender, _vendor, _value);
-		require(channels[channelId].closed == true && channels[channelId].timedOut == true);
-		msg.sender.transfer(_value);
-		return true;
-	}*/
+	}
 
 }
