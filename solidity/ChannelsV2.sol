@@ -41,6 +41,7 @@ contract PaymentChannels is Administration {
 	mapping (address => mapping (bytes32 => uint256)) private deposits;
 	mapping (bytes32 => ChannelStruct) public channels;
 
+
 	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelTimedOut(bytes32 indexed _channeId);
