@@ -140,8 +140,8 @@ contract PaymentChannels is Administration {
 		require(channelIds[_channelId]);
 		require(channels[_channelId].state != ChannelStates.closed &&
 			    channels[_channelId].state != ChannelStates.expired &&
-			    channels[channelId].state != ChannelStates.accepted);
-		channels[channelId].state = ChannelStates.accepted;
+			    channels[_channelId].state != ChannelStates.accepted);
+		channels[_channelId].state = ChannelStates.accepted;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].vendor);
 		channels[_channelId].proofSubmitted[signer] = true;
@@ -210,7 +210,7 @@ contract PaymentChannels is Administration {
 		bytes32 _channelId)
 		public
 		view
-		returns (uint256)
+		returns (ChannelStates)
 	{
 		return channels[_channelId].state;
 	}
