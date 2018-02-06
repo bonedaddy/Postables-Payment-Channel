@@ -14,7 +14,7 @@ These payment channels are suitable for any transaction involving two parties, b
 
 1) Introduce the ability for rolling over daily incremental withdrawals
 2) Introduce re-usable channels
-3) Introduce channel factories to allow  for the existence of multiple PostableHubs (ChannelsV2.sol), each being owned by a single entity, so that each Hub could be used by a business to pay a particular department and so on.
+3) Introduce channel factories to allow  for the existence of multiple PostableHubs, each being owned by a single entity, so that each Hub could be used by a business to pay a particular department and so on.
 4) Introduce Postables-Bridge to allow for payment channels between mainnet and other EVM chains (side chains)
 	> Use PPCT (Postables Payment Channel Tokens) as the collateral mechanism (or ether, design is open at time point)
 5) Add web3 desktop or browser Dapp for ease of  use
