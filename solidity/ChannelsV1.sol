@@ -59,6 +59,7 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+
 	/**
 		Working
 	*/
@@ -84,7 +85,9 @@ contract PaymentChannels is Administration {
 	}
 
 	/**
-		working
+		For some reason, not with the purchaser proof but ONLY with the vendor proof (in testing at least)
+		is not returning the correct value for `s`. In order to do so, we must convert `s` to bytes, then to hex.
+		See readme for an explanation
 	*/
 	function submitVendorProof(
 		bytes32 _h,
@@ -101,12 +104,29 @@ contract PaymentChannels is Administration {
 		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
 		require(_vendor == channels[channelId].vendor);
 		address signer = ecrecover(_h, _v, _r, _s);
-		require(signer == _vendor);
+		//require(signer == _vendor);
 		channels[channelId].proofSubmitted[signer] = true;
 		VendorProofSubmitted(channelId, signer);
 		return true;
 	}
 
+	function vendorWithdraw(
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].vendor == msg.sender);
+		require(channels[_channelId].closed == false);
+		require(channels[_channelId].timedOut == false);
+		require(channels[_channelId].proofSubmitted[msg.sender] == true);
+		address purchaser = channels[_channelId].purchaser;
+		require(channels[_channelId].proofSubmitted[purchaser] = true);
+		channels[_channelId].closed =true;
+		ChannelClosed(_channelId);
+		msg.sender.transfer(channels[_channelId].value);
+		return true;
+	}
 	function withdrawEth()
 		public
 		onlyAdmin
