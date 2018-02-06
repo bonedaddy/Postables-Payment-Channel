@@ -18,6 +18,7 @@ contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
+	string constant public VERSION = "0.0.2alpha";
 	
 	uint256 private channelCount;
 	bool	public	dev = true;
@@ -126,7 +127,6 @@ contract PaymentChannels is Administration {
 
 	/**
 		Used to submit vendor proof
-		NOT TESTED
 	*/
 	function submitVendorProof(
 		bytes32 _h,
