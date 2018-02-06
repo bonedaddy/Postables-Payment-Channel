@@ -27,10 +27,11 @@ contract PaymentChannels is Administration {
 		Initial channel state is "proposed"
 		It becomes "accepted" once the vendor proof is submitted
 		It becomes "expired" if channel opener times out channel due to lack of vendor proof
+		It becomes "finalized" once both proofs have been submitted
 		It becomes "closed" if the channel is succesfully closed peacefully
 
 	*/
-	enum ChannelStates { proposed, accepted, expired, closed }
+	enum ChannelStates { proposed, accepted, expired, finalized, closed }
 
 	ChannelStates public defaultState = ChannelStates.proposed;
 
@@ -126,7 +127,28 @@ contract PaymentChannels is Administration {
 
 
 	/**
+		Used to submit purchaser proof
+	*/
+	function submitPurchaserProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].state == ChannelStates.accepted);
+		channels[_channelId].state = ChannelStates.finalized;
+		address signer = ecrecover(_h, _v, _r, _s);
+		require(signer == channels[_channelId].purchaser);
+		return true;
+	}
+
+	/**
 		Used to submit vendor proof
+		// modifier, modification not tested yet
 	*/
 	function submitVendorProof(
 		bytes32 _h,
@@ -138,9 +160,9 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(channels[_channelId].state != ChannelStates.closed &&
-			    channels[_channelId].state != ChannelStates.expired &&
-			    channels[_channelId].state != ChannelStates.accepted);
+		// this was previously not listed, which means *ANYONE* could submit the proof which is obviously not secure
+		require(msg.sender == channels[_channelId].purchaser);
+		require(channels[_channelId].state == ChannelStates.proposed); // modified
 		channels[_channelId].state = ChannelStates.accepted;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].vendor);
