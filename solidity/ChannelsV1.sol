@@ -104,7 +104,7 @@ contract PaymentChannels is Administration {
 		require(channels[channelId].closed == false && channels[channelId].timedOut == false);
 		require(_vendor == channels[channelId].vendor);
 		address signer = ecrecover(_h, _v, _r, _s);
-		//require(signer == _vendor);
+		require(signer == _vendor);
 		channels[channelId].proofSubmitted[signer] = true;
 		VendorProofSubmitted(channelId, signer);
 		return true;
