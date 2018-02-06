@@ -1,4 +1,4 @@
-# Postables-Payment-Channel (WIP)
+# Postables-Payment-Channel (WIP) --- DEVELOP
 
 # Introduction
 
