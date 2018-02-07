@@ -79,7 +79,7 @@ contract PaymentChannels is Administration, DateTime {
 	function withdrawMicroPayment(
 		bytes32 _channelId)
 		public
-		pure // silence compiler warnings until done
+		view // silence compiler warnings until done
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
