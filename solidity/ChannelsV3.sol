@@ -1,5 +1,6 @@
 pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
+import "./DateTime.sol"; // only temporary
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
 /**
@@ -17,6 +18,7 @@ import "./Libs/EcRecovery.sol";
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
+	using DateTime as dt;
 
 	string constant public VERSION = "0.0.2alpha";
 	
@@ -41,9 +43,44 @@ contract PaymentChannels is Administration {
 		uint256 value;
 		uint256 expirationDate;
 		uint256 openDate;
+		uint256 microPaymentAmount;
+		uint256 microPaymentFrequency;
+		uint256 nextMicroPayment;
 		bytes32 channelId;
 		ChannelStates state;
+		bool	microPaymentEnabled;
 		mapping (address => bool) proofSubmitted;
+	}
+
+	function enableMicroPayments(
+		bytes32 _channelId,
+		uint256 _microPaymentFrequencyInDays,
+		uint256 _microPaymentAmount)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(!channels[_channelId].microPaymentEnabled);
+		require(msg.sender == channels[_channelId].purchaser);
+		require(_microPaymentAmount <= channels[_channelId].value);
+		uint256 nextPayment = (now + (_microPaymentFrequencyInDays * 1 days))
+		channels[_channelId].microPaymentAmount = _microPaymentAmount;
+		channels[_channelId].microPaymentAmountFrequency = _microPaymentFrequencyInDays * 1 days;
+		channels[_channelId].nextMicroPayment = nextPayment;
+		channels[_channelId].microPaymentEnabled = true;
+		return true;
+	}
+
+	function withdrawMicroPayment(
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channes[_channelId].microPaymentEnabled);
+		require(msg.sender == channels[_channelId].vendor);
+		require(now >= channels[_channelId].nextMicroPayment)
+		dt.retrieveTimeDifferenceInDays(now, channels[nextMicroPayment]);
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
