@@ -40,7 +40,7 @@ contract DateTime {
             // convert to minute
             uint256 m = diff.div(60);
             // convert to hours
-            uint256 h = m.div(60;)
+            uint256 h = m.div(60);
             // convert to days
             uint256 d = h.div(24);
             return d;

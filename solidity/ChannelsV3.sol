@@ -15,10 +15,9 @@ import "./Libs/EcRecovery.sol";
 		> open channel without vendor message, manually submit message
 
 */
-contract PaymentChannels is Administration {
+contract PaymentChannels is Administration, DateTime {
 	
 	using SafeMath for uint256;
-	using DateTime as dt;
 
 	string constant public VERSION = "0.0.2alpha";
 	
@@ -45,6 +44,7 @@ contract PaymentChannels is Administration {
 		uint256 openDate;
 		uint256 microPaymentAmount;
 		uint256 microPaymentFrequency;
+		uint256 lastMicroPayment;
 		uint256 nextMicroPayment;
 		bytes32 channelId;
 		ChannelStates state;
@@ -63,24 +63,35 @@ contract PaymentChannels is Administration {
 		require(!channels[_channelId].microPaymentEnabled);
 		require(msg.sender == channels[_channelId].purchaser);
 		require(_microPaymentAmount <= channels[_channelId].value);
-		uint256 nextPayment = (now + (_microPaymentFrequencyInDays * 1 days))
+		uint256 nextPayment = (now + (_microPaymentFrequencyInDays * 1 days));
 		channels[_channelId].microPaymentAmount = _microPaymentAmount;
-		channels[_channelId].microPaymentAmountFrequency = _microPaymentFrequencyInDays * 1 days;
+		channels[_channelId].microPaymentFrequency = _microPaymentFrequencyInDays * 1 days;
 		channels[_channelId].nextMicroPayment = nextPayment;
 		channels[_channelId].microPaymentEnabled = true;
 		return true;
 	}
 
+
+	/**
+		WIP
+		NOT TESTED
+	*/
 	function withdrawMicroPayment(
 		bytes32 _channelId)
 		public
+		pure // silence compiler warnings until done
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(channes[_channelId].microPaymentEnabled);
+		require(channels[_channelId].microPaymentEnabled);
 		require(msg.sender == channels[_channelId].vendor);
-		require(now >= channels[_channelId].nextMicroPayment)
-		dt.retrieveTimeDifferenceInDays(now, channels[nextMicroPayment]);
+		require(now >= channels[_channelId].nextMicroPayment);
+		if (channels[_channelId].lastMicroPayment > 0) {
+			uint256 diffInDays = DateTime.retrieveTimeDifferenceInDays(channels[_channelId].lastMicroPayment, channels[_channelId].nextMicroPayment);
+			require(diffInDays >= 1 && diffInDays >= channels[_channelId].microPaymentFrequency);
+			uint256 payment = diffInDays.mul(channels[_channelId].microPaymentAmount);
+			payment; // silence compiler warning
+		}
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
@@ -294,7 +305,7 @@ contract PaymentChannels is Administration {
 		pure 
 		returns (bytes32)
 	{
-		return keccak256(_purchaser, _vendor, _channelValueInWei, _date)
+		return keccak256(_purchaser, _vendor, _channelValueInWei, _date);
 	}
 
 }

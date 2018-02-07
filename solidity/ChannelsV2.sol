@@ -257,7 +257,7 @@ contract PaymentChannels is Administration {
 		pure 
 		returns (bytes32)
 	{
-		return keccak256(_purchaser, _vendor, _channelValueInWei, _date)
+		return keccak256(_purchaser, _vendor, _channelValueInWei, _date);
 	}
 
 }
