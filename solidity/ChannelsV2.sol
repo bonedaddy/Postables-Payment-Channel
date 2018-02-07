@@ -2,16 +2,7 @@ pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
-/**
-	Add message hash verificaton when submitting a second signature.
-	first signature to submit commits the message hash, subsequent signatures mush also submit a signature
-	which verifies off that message hash. This should help reduce exploitation attempts
 
-	To Do:
-		> Implement channel timeout
-		> Implement two in one proof submission for the vendor and channel open process
-
-*/
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
@@ -22,44 +13,50 @@ contract PaymentChannels is Administration {
 	bool	public	dev = true;
 
 	/** State Description
-		Initial channel state is "proposed"
+		Initial channel state is "opened"
 		It becomes "accepted" once the vendor proof is submitted
 		It becomes "expired" if channel opener times out channel due to lack of vendor proof
 		It becomes "finalized" once both proofs have been submitted
 		It becomes "closed" if the channel is succesfully closed peacefully
 
-	*/
-	enum ChannelStates { proposed, accepted, expired, finalized, closed }
+	*/					/** 0       1          2           3*/
+	enum ChannelStates { opened, expired, finalized, closed }
 
-	ChannelStates public defaultState = ChannelStates.proposed;
+	ChannelStates public defaultState = ChannelStates.opened;
 
 	struct ChannelStruct {
 		address purchaser;
 		address vendor;
 		uint256 value;
-		uint256 expirationDate;
 		uint256 closingDate;
 		uint256 openDate;
 		bytes32 channelId;
+		bool	purchaserProofSubmitted;
+		bool	vendorProofSubmitted;
 		ChannelStates state;
-		bool	bothProofsSubmitted;
-		mapping (address => bool) proofSubmitted;
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
-
+	// prevent resubmission of the same signed messages
+	mapping (bytes32 => mapping (address => bool)) private signedMessages;
 	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelExpired(bytes32 indexed _channelId);
 	event VendorProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 
+	modifier bothProofsSubmitted(bytes32 _channelId) {
+		require(channels[_channelId].vendorProofSubmitted)
+		require(channels[_channelId].purchaserProofSubmitted);
+		_;
+	}
+
 	function () public payable {}
 
 
-	/**
+	/**tested
 		Used to open a channeltwo-in-one vendor verification
 		Useful in situations where the vendor and purchaser don't know each other.
 	*/
@@ -78,12 +75,10 @@ contract PaymentChannels is Administration {
 		// make sure the channel id doens't already exit
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
-		uint256 autoClosureDate = (now + ((_durationInDays * 1 days) * 2));
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].value = _channelValueInWei;
-		channels[channelId].expirationDate = autoClosureDate;
-		channels[channelId].closingDate = _durationInDays * 1 days;
+		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
 		channels[channelId].channelId = channelId;
 		channels[channelId].state = defaultState;
@@ -91,7 +86,7 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	/**
+	/**tested
 		Used by the vendor to accept the channel request
 	*/
 	function submitPurchaserProof(
@@ -104,9 +99,9 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(msg.sender == channels[_channelId].vendor);
-		require(channels[_channelId].state == ChannelStates.proposed);
-		channels[_channelId].state = ChannelStates.accepted;
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(!signedMessages[_h][msg.sender]);
+		signedMessages[_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].purchaser);
 		channels[_channelId].proofSubmitted[signer] = true;
@@ -114,8 +109,8 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	/**
-		Used to submit vendor proof
+	/**tested
+		Used to submit vendor proof by channel purchaser
 	*/
 	function submitVendorProof(
 		bytes32 _h,
@@ -127,9 +122,9 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(msg.sender == channels[_channelId].purchaser);
-		require(channels[_channelId].state == ChannelStates.accepted);
-		channels[_channelId].state = ChannelStates.finalized;
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(!signedMessages[_h][msg.sender]);
+		signedMessages[_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].vendor);
 		channels[_channelId].proofSubmitted[signer] = true;
@@ -138,7 +133,7 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	/**
+	/**tested
 		This is used by a vendor to close the channel and withdraw their funds
 	*/
 	function closeChannel(
@@ -160,26 +155,31 @@ contract PaymentChannels is Administration {
 	}
 
 	/**
-		Used when the vendor has not sent their proof, and allows channel opener to recover their funds
+		Used when the vendor has not sent their proof,  and its been 2 weeks since the closing date,
+		kill the channel
 	*/
 	function expireChannel(
 		bytes32 _channelId)
 		public
 		returns (bool)
 	{
-		require(channelId[_channelId]);
+		require(channelIds[_channelId]);
 		require(msg.sender == channels[_channelId].purchaser);
+		require(now > (channels[_channelId].closingDate + 2 weeks));
 		require(channels[_channelId].state != ChannelStates.closed &&
 			    channels[_channelId].state != ChannelStates.finalized &&
 			    channels[_channelId].state != ChannelStates.expired);
 		channels[_channelId].state = ChannelStates.expired;
 		uint256 deposit = channels[_channelId].value;
-		channels[_channelId].value = 0.
+		channels[_channelId].value = 0;
 		ChannelExpired(_channelId);
 		msg.sender.transfer(deposit);
 		return true;
 	}
 
+	/**tested
+		withdraw any ether in the contract, only when in developer mode
+	*/
 	function withdrawEth()
 		public
 		onlyAdmin
