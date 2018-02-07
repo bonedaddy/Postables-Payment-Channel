@@ -39,8 +39,8 @@ contract PaymentChannels is Administration {
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
-	// prevent resubmission of the same signed messages
-	mapping (bytes32 => mapping (address => bool)) private signedMessages;
+	// prevent resubmission of the same signed messages by a particular address within a channel
+	mapping (bytes32 => mapping (bytes32 => mapping(address => bool))) private signedMessages;
 	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelExpired(bytes32 indexed _channelId);
@@ -48,7 +48,7 @@ contract PaymentChannels is Administration {
 	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 
 	modifier bothProofsSubmitted(bytes32 _channelId) {
-		require(channels[_channelId].vendorProofSubmitted)
+		require(channels[_channelId].vendorProofSubmitted);
 		require(channels[_channelId].purchaserProofSubmitted);
 		_;
 	}
@@ -86,7 +86,7 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	/**tested
+	/**
 		Used by the vendor to accept the channel request
 	*/
 	function submitPurchaserProof(
@@ -100,16 +100,16 @@ contract PaymentChannels is Administration {
 	{
 		require(channelIds[_channelId]);
 		require(channels[_channelId].state == ChannelStates.opened);
-		require(!signedMessages[_h][msg.sender]);
-		signedMessages[_h][msg.sender] = true;
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].purchaser);
-		channels[_channelId].proofSubmitted[signer] = true;
+		channels[_channelId].purchaserProofSubmitted = true;
 		PurchaserProofSubmitted(_channelId, signer);
 		return true;
 	}
 
-	/**tested
+	/**
 		Used to submit vendor proof by channel purchaser
 	*/
 	function submitVendorProof(
@@ -123,17 +123,16 @@ contract PaymentChannels is Administration {
 	{
 		require(channelIds[_channelId]);
 		require(channels[_channelId].state == ChannelStates.opened);
-		require(!signedMessages[_h][msg.sender]);
-		signedMessages[_h][msg.sender] = true;
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].vendor);
-		channels[_channelId].proofSubmitted[signer] = true;
-		channels[_channelId].bothProofsSubmitted = true;
+		channels[_channelId].vendorProofSubmitted = true;
 		VendorProofSubmitted(_channelId, signer);
 		return true;
 	}
 
-	/**tested
+	/**
 		This is used by a vendor to close the channel and withdraw their funds
 	*/
 	function closeChannel(
@@ -143,7 +142,6 @@ contract PaymentChannels is Administration {
 	{
 		require(channelIds[_channelId]);
 		require(channels[_channelId].state == ChannelStates.finalized);
-		require(channels[_channelId].bothProofsSubmitted);
 		require(channels[_channelId].value > 0);
 		require(msg.sender == channels[_channelId].vendor);
 		uint256 deposit = channels[_channelId].value;
@@ -165,7 +163,9 @@ contract PaymentChannels is Administration {
 	{
 		require(channelIds[_channelId]);
 		require(msg.sender == channels[_channelId].purchaser);
-		require(now > (channels[_channelId].closingDate + 2 weeks));
+		if (!dev) {
+			require(now > (channels[_channelId].closingDate + 2 weeks));
+		}
 		require(channels[_channelId].state != ChannelStates.closed &&
 			    channels[_channelId].state != ChannelStates.finalized &&
 			    channels[_channelId].state != ChannelStates.expired);
@@ -188,84 +188,6 @@ contract PaymentChannels is Administration {
 		require(dev);
 		msg.sender.transfer(this.balance);
 		return true;
-	}
-
-	/**GETTERS*/
-
-	function getChannelPurchaser(
-		bytes32 _channelId)
-		public
-		view
-		returns (address)
-	{
-		return channels[_channelId].purchaser;
-	}
-
-	function getChannelVendor(
-		bytes32 _channelId)
-		public
-		view
-		returns (address)
-	{
-		return channels[_channelId].vendor;
-	}
-
-	function getChannelValue(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].value;
-	}
-
-	function getExpirationDate(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].expirationDate;
-	}
-
-	function getOpenDate(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].openDate;
-	}
-
-	function getChannelState(
-		bytes32 _channelId)
-		public
-		view
-		returns (ChannelStates)
-	{
-		return channels[_channelId].state;
-	}
-
-	function checkIfProofSubmitted(
-		bytes32 _channelId,
-		address _addr)
-		public
-		view
-		returns (bool)
-	{
-		return channels[_channelId].proofSubmitted[_addr];
-	}
-
-	function calculateChannelId(
-		address _purchaser,
-		address _vendor,
-		uint256 _channelValueInWei,
-		uint256 _date)
-		public
-		pure 
-		returns (bytes32)
-	{
-		return keccak256(_purchaser, _vendor, _channelValueInWei, _date);
 	}
 
 }
