@@ -52,6 +52,9 @@ contract PaymentChannels is Administration, DateTime {
 		mapping (address => bool) proofSubmitted;
 	}
 
+	/**
+		Allows us to enable micro payment, for cheap, repeatble withdrawals before channel closure
+	*/
 	function enableMicroPayments(
 		bytes32 _channelId,
 		uint256 _microPaymentFrequencyInDays,
