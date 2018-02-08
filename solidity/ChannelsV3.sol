@@ -49,9 +49,8 @@ contract PaymentChannels is Administration {
 	mapping (bytes32 => mapping (bytes32 => bool)) private microPaymentHashes;
 
 	/** Micropayment proof
-		hash: keccak256(channelId, paymentString, withdrawal amount)
-		To generate on python:
-			Web3.soliditySha3(['bytes32', 'string', 'uint256'], [Web3.toHex('foo'), 'bar', 200])
+						bytes32,   uint256,   uint256
+		hash: keccak256(channelId, paymentId, withdrawalAmount)
 	*/
 
 	event ChannelOpened(bytes32 indexed _channelId);
@@ -161,6 +160,7 @@ contract PaymentChannels is Administration {
 		uint8   _v,
 		bytes32 _r,
 		bytes32 _s,
+		uint256 _paymentId,
 		uint256 _withdrawalAmount)
 		public
 		returns (bool)
@@ -174,7 +174,7 @@ contract PaymentChannels is Administration {
 		// prevent a micropayment from reducing the entire balance
 		require(channels[_channelId].value > _withdrawalAmount && _withdrawalAmount > 0);
 		// following two lines construct the proof, with prefix to validate _h
-		bytes32  _proof = keccak256(_channelId, msg.sender, _withdrawalAmount);
+		bytes32  _proof = keccak256(_channelId, _paymentId, _withdrawalAmount);
 		bytes32 proof = keccak256(prefix, _proof);
 		// validate the proof, if it fails most likely malicious submitter, so lets waste their gas ;)
 		assert(proof == _h);
