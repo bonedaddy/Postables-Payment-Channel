@@ -1,17 +1,18 @@
-# Postables-Payment-Channel (WIP) --- DEVELOP
+# Postables-Payment-Channel (WIP)
 
 # Introduction
 
 Postables Payment Channels is a set of payment channel contract whichs can be reused across multiple different transactions, and parties. Currently payment channels are limited to two participating entities. It is still very much so a work in progress and will be improved over time to include my currently closed-source EVM bridge to enable payment channels across side-chain
 
-# Roadmap ()
+# Roadmap
 
-1) Introduce the ability for rolling over daily incremental withdrawals
-2) Introduce re-usable channels
-3) Introduce channel factories to allow  for the existence of multiple PostableHubs (ChannelsV2.sol), each being owned by a single entity, so that each Hub could be used by a business to pay a particular department and so on.
-4) Introduce Postables-Bridge to allow for payment channels between mainnet and other EVM chains (side chains)
-	> Use PPCT (Postables Payment Channel Tokens) as the collateral mechanism (or ether, design is open at time point)
-5) Add web3 desktop or browser Dapp for ease of  use
+- Add reusable channels
+- Add micro payments
+- Add multi-party channels
+- Add ERC20 channels
+- Add a terminal based client
+
+
 
 # Contribution guides:
 TO DO
