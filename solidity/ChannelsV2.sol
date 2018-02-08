@@ -1,16 +1,15 @@
 pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
-import "./Libs/EcRecovery.sol";
 
 /*
-	Will be used as the basis for V3 which will enable trustless micro payments, ontop of full channel payments
+	Will be used as the basis for V3 which will enable icro payments, ontop of full channel payments
 */
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
-	string constant public VERSION = "0.0.3alpha";
+	string constant public VERSION = "0.0.2alpha";
 	
 	uint256 private channelCount;
 	// prevent any possible accidental triggering of developer only conditions
