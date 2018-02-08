@@ -34,7 +34,7 @@ if choice == 0:
 	h, v, r, s = genSigParts(signature)
 	sigParts(h,v,r,s)
 elif choice == 1:
-	channelId = Web3.toHex(0x1a84a392a47ba8814ec61fe0f064ffcdfc8bdb581b1a17eda3e970b1fa03c461)
+	channelId = Web3.toHex(0x3d9b438c4a9fc2301d7e50c2275c0ee8c2fcd49b4728a8b9b6d965821420cce1)
 	paymentId = int(input('Enter payment id\t'))
 	withdrawalAmount = int(input('Enter withdrawal amount\t'))
 	rawMessageHash = Web3.toHex(Web3.soliditySha3(['bytes32', 'uint256', 'uint256'], [channelId, paymentId, withdrawalAmount]))
