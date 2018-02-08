@@ -4,6 +4,12 @@
 
 Postables Payment Channels is a set of payment channel contract whichs can be reused across multiple different transactions, and parties. Currently payment channels are limited to two participating entities. It is still very much so a work in progress and will be updated over time to include a bridge written in python.
 
+
+# Files:
+- ChannelsV1.sol (kept around for historical purposes)
+- ChannelsV2.sol (working implementation, no micropayments)
+- ChannelsV3.sol (WIP, will include micro payments)
+
 # Roadmap
 
 - Add reusable channels
