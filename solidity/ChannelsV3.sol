@@ -14,6 +14,7 @@ contract PaymentChannels is Administration {
 	string constant public VERSION = "0.0.3alpha";
 	
 	uint256 private channelCount;
+	bytes private prefix = "\x19Ethereum Signed Message:\n32";
 	// prevent any possible accidental triggering of developer only conditions
 	bool	public	dev = true;
 
@@ -22,14 +23,14 @@ contract PaymentChannels is Administration {
 	ChannelStates public defaultState = ChannelStates.opened;
 
 	struct ChannelStruct {
-		address purchaser;
-		address vendor;
+		address source;
+		address destination;
 		uint256 value;
 		uint256 closingDate;
 		uint256 openDate;
 		bytes32 channelId;
-		bool	purchaserProofSubmitted;
-		bool	vendorProofSubmitted;
+		bool	sourceProofSubmitted;
+		bool	destinationProofSubmitted;
 		ChannelStates state;
 	}
 
@@ -47,11 +48,18 @@ contract PaymentChannels is Administration {
 	*/
 	mapping (bytes32 => mapping (bytes32 => bool)) private microPaymentHashes;
 
+	/** Micropayment proof
+		hash: keccak256(channelId, paymentString, withdrawal amount)
+		To generate on python:
+			Web3.soliditySha3(['bytes32', 'string', 'uint256'], [Web3.toHex('foo'), 'bar', 200])
+	*/
+
 	event ChannelOpened(bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
 	event ChannelExpired(bytes32 indexed _channelId);
-	event VendorProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
-	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
+	event DestinationProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
+	event SourceProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
+	event MicroPaymentWithdrawn(bytes32 indexed _channelId, uint256 _amount, uint256 _remainingChannelValue);
 
 	modifier bothProofsSubmitted(bytes32 _channelId) {
 		require(channels[_channelId].vendorProofSubmitted);
@@ -62,10 +70,9 @@ contract PaymentChannels is Administration {
 	function () public payable {}
 
 
-	function submitMicroPaymentProof() public returns (bool);
 
 	function openChannel(
-		address _vendor,
+		address _destination,
 		uint256 _channelValueInWei,
 		uint256 _durationInDays)
 		public
@@ -79,8 +86,8 @@ contract PaymentChannels is Administration {
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
-		channels[channelId].purchaser = msg.sender;
-		channels[channelId].vendor = _vendor;
+		channels[channelId].source = msg.sender;
+		channels[channelId].destination = _destination;
 		channels[channelId].value = _channelValueInWei;
 		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
@@ -90,7 +97,7 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
-	function submitPurchaserProof(
+	function submitSourceProof(
 		bytes32 _h,
 		uint8   _v,
 		bytes32 _r,
@@ -104,13 +111,13 @@ contract PaymentChannels is Administration {
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
-		require(signer == channels[_channelId].purchaser);
-		channels[_channelId].purchaserProofSubmitted = true;
-		PurchaserProofSubmitted(_channelId, signer);
+		require(signer == channels[_channelId].source);
+		channels[_channelId].sourceProofSubmitted = true;
+		SourceProofSubmitted(_channelId, signer);
 		return true;
 	}
 
-	function submitVendorProof(
+	function submitDestinationProof(
 		bytes32 _h,
 		uint8   _v,
 		bytes32 _r,
@@ -124,9 +131,9 @@ contract PaymentChannels is Administration {
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
-		require(signer == channels[_channelId].vendor);
+		require(signer == channels[_channelId].destination);
 		channels[_channelId].vendorProofSubmitted = true;
-		VendorProofSubmitted(_channelId, signer);
+		DestinationProofSubmitted(_channelId, signer);
 		return true;
 	}
 
@@ -139,12 +146,39 @@ contract PaymentChannels is Administration {
 		require(channelIds[_channelId]);
 		require(channels[_channelId].state == ChannelStates.opened);
 		require(channels[_channelId].value > 0);
-		require(msg.sender == channels[_channelId].vendor);
+		require(msg.sender == channels[_channelId].destination);
 		uint256 deposit = channels[_channelId].value;
 		channels[_channelId].value = 0;
 		channels[_channelId].state = ChannelStates.closed;
 		ChannelClosed(_channelId);
 		msg.sender.transfer(deposit);
+		return true;
+	}
+
+	function submitMicroPaymentProof(
+		bytes32 _channelId,
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		uint256 _withdrawalAmount)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(msg.sender == channels[_channelId].destination);
+		// prevent a micropayment from reducing the entire balance
+		require(channels[_channelId].value > _withdrawalAmount && _withdrawalAmount > 0);
+		bytes32 memory _proof = keccak256(_channelId, _paymentString, _withdrawalAmount);
+		bytes32 memory proof = keccak256(prefix, _proof);
+		assert(proof == _h);
+		require(!microPaymentHashes[_channelId][_h]);
+		microPaymentHashes[_channelId][_h] = true;
+		uint256 remainingChannelValue = channels[_channelId].value.sub(_withdrawalAmount);
+		channels[_channelId].value = remainingChannelValue;
+		MicroPaymentWithdrawn(_channelId, _withdrawalAmount, remainingChannelValue);
+		msg.sender.transfer(_withdrawalAmount);
 		return true;
 	}
 
@@ -157,11 +191,11 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(msg.sender == channels[_channelId].purchaser);
+		require(msg.sender == channels[_channelId].source);
 		// require that the channel is open
 		require(channels[_channelId].state == ChannelStates.opened);
 		// if both proofs have been submitted, throw
-		if (channels[_channelId].purchaserProofSubmitted && channels[_channelId].vendorProofSubmitted) {
+		if (channels[_channelId].sourceProofSubmitted && channels[_channelId].destinationProofSubmitted) {
 			revert();
 		}
 		if (!dev) {
