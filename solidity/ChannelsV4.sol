@@ -118,7 +118,7 @@ contract PaymentChannels is Administration {
 		ercChannels[channelId].channelId = channelId;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		ErcChannelOpened(channelId);
-		require(e.balanceOf(msg.sender) >= _channelValueInWei);
+		require(e.transferFrom(msg.sender, address(this), _channelValueInWei));
 		return true;
 	}	
 
