@@ -62,8 +62,8 @@ contract PaymentChannels is Administration {
 	event MicroPaymentWithdrawn(bytes32 indexed _channelId, uint256 _amount, uint256 _remainingChannelValue);
 
 	modifier bothProofsSubmitted(bytes32 _channelId) {
-		require(channels[_channelId].vendorProofSubmitted);
-		require(channels[_channelId].purchaserProofSubmitted);
+		require(channels[_channelId].sourceProofSubmitted);
+		require(channels[_channelId].destinationProofSubmitted);
 		_;
 	}
 
@@ -82,7 +82,7 @@ contract PaymentChannels is Administration {
 		require(msg.value == _channelValueInWei);
 		uint256 currentDate = now;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValueInWei, currentDate);
+		bytes32 channelId = keccak256(msg.sender, _destination, _channelValueInWei, currentDate);
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -132,7 +132,7 @@ contract PaymentChannels is Administration {
 		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].destination);
-		channels[_channelId].vendorProofSubmitted = true;
+		channels[_channelId].destinationProofSubmitted = true;
 		DestinationProofSubmitted(_channelId, signer);
 		return true;
 	}
@@ -165,19 +165,34 @@ contract PaymentChannels is Administration {
 		public
 		returns (bool)
 	{
+		// validate channel id
 		require(channelIds[_channelId]);
+		// validate channel state
 		require(channels[_channelId].state == ChannelStates.opened);
+		// make sure nobody else is trying to withdraw the funds
 		require(msg.sender == channels[_channelId].destination);
 		// prevent a micropayment from reducing the entire balance
 		require(channels[_channelId].value > _withdrawalAmount && _withdrawalAmount > 0);
+		// following two lines construct the proof, with prefix to validate _h
 		bytes32  _proof = keccak256(_channelId, msg.sender, _withdrawalAmount);
 		bytes32 proof = keccak256(prefix, _proof);
+		// validate the proof, if it fails most likely malicious submitter, so lets waste their gas ;)
 		assert(proof == _h);
+		// make sure the proof hasn't already bee submitted
 		require(!microPaymentHashes[_channelId][_h]);
+		// mark proof as submitted
 		microPaymentHashes[_channelId][_h] = true;
+		// time to recover the signature
+		address signer = ecrecover(_h, _v, _r, _s);
+		// make sure its from the source, otherwise someones up to no good so lets waste their gas ;)
+		assert(signer == channels[_channelId].source)
+		// calculate remaining channel value
 		uint256 remainingChannelValue = channels[_channelId].value.sub(_withdrawalAmount);
+		// adjust channel value
 		channels[_channelId].value = remainingChannelValue;
+		// notify blockchain
 		MicroPaymentWithdrawn(_channelId, _withdrawalAmount, remainingChannelValue);
+		// withdraw funds
 		msg.sender.transfer(_withdrawalAmount);
 		return true;
 	}
