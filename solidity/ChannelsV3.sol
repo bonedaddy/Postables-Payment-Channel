@@ -185,7 +185,7 @@ contract PaymentChannels is Administration {
 		// time to recover the signature
 		address signer = ecrecover(_h, _v, _r, _s);
 		// make sure its from the source, otherwise someones up to no good so lets waste their gas ;)
-		assert(signer == channels[_channelId].source)
+		assert(signer == channels[_channelId].source);
 		// calculate remaining channel value
 		uint256 remainingChannelValue = channels[_channelId].value.sub(_withdrawalAmount);
 		// adjust channel value
