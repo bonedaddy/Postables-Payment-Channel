@@ -113,6 +113,7 @@ contract PaymentChannels is Administration {
 		ercChannels[channelId].source = msg.sender;
 		ercChannels[channelId].destination = _destination;
 		ercChannels[channelId].tokenAddress = _tokenAddress;
+		ercChannels[channelId].value = _channelValueInWei;
 		ercChannels[channelId].closingDate = (now + (_durationInDays * 1 days));
 		ercChannels[channelId].openDate = now;
 		ercChannels[channelId].channelId = channelId;
@@ -132,6 +133,19 @@ contract PaymentChannels is Administration {
 	{
 		require(dev);
 		msg.sender.transfer(this.balance);
+		return true;
+	}
+
+	function withdrawTokens(
+		address _tokenAddress)
+		public
+		onlyAdmin
+		returns (bool)
+	{
+		require(dev);
+		ERC20Interface e = ERC20Interface(_tokenAddress);
+		uint256 balance = e.balanceOf(address(this));
+		require(e.transer(msg.sender, balance));
 		return true;
 	}
 
