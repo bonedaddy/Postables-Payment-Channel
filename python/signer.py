@@ -11,7 +11,8 @@ with open(keyFilePath, 'r') as fh:
 
 
 messageTextToSign = input('What is the message you wish to sign:\t')
-signature = w3.eth.account.sign(message_text=messageTextToSign, private_key=private_key)
+hashStr = Web3.toHex(Web3.soliditySha3(['string'], [messageTextToSign]))
+signature = w3.eth.account.sign(message_hexstr=hashStr, private_key=private_key)
 h = Web3.toHex(signature.messageHash)
 v = signature.v
 # zero-pad with 32 bytes, issue #617 in web3py
