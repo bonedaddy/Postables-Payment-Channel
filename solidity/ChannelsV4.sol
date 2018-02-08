@@ -13,7 +13,7 @@ contract PaymentChannels is Administration {
 	// prevent any possible accidental triggering of developer only conditions
 	bool	public	dev = true;
 
-	enum ChannelStates { opened, expired, closed }
+	enum ChannelStates { opened, expired, finalized, closed }
 
 	ChannelStates public defaultState = ChannelStates.opened;
 
@@ -46,7 +46,12 @@ contract PaymentChannels is Administration {
 	mapping (bytes32 => ErcChannelStruct) public ercChannels;
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => bool) private channelIds;
-	// prevent resubmission of the same signed messages by a particular address within a channel
+	/** prevent resubmission of the same signed messages by a particular address within a channel
+		key 1 (bytes32) = channel id
+		key 2 (bytes32) = messageHash
+		key 3 (address) = address of the submitter
+		val   (bool)    = whether or not the message has already been submitted
+	*/
 	mapping (bytes32 => mapping (bytes32 => mapping(address => bool))) private signedMessages;
 	/**
 		keeps track of micro payment proofs and prevent them from being reused.
@@ -123,6 +128,84 @@ contract PaymentChannels is Administration {
 		return true;
 	}	
 
+	function submitErcSourceProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		// verify correct channel id
+		require(channelIds[_channelId]);
+		// ensure channel state is opened
+		require(ercChannels[_channelId].state == ChannelStates.opened);
+		// make sure source proof hasn't already been submitted
+		require(!ercChannels[_channelId].sourceProofSubmitted);
+		// recover address of signer
+		address signer = ecrecover(_h, _v, _r, _s);
+		// ensure that the signer is the source of the channel
+		assert (signer == ercChannels[_channelId].source);
+		// mark source proof as submitted
+		ercChannels[_channelId].sourceProofSubmitted = true;
+		// ensure this proof can't be reused by the same sender
+		signedMessages[_channelId][_h][msg.sender] = true;
+		// notify blockchain
+		SourceProofSubmitted(_channelId, signer);
+		return true;
+	}
+
+	function submitErcDestinationProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s, 
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		// verify correct channel id
+		require(channelIds[_channelId]);
+		// ensure channel state is opened
+		require(ercChannels[_channelId].state == ChannelStates.opened);
+		// make sure destination proof hasn't already been submitted
+		require(!ercChannels[_channelId].destinationProofSubmitted);
+		// recover address of signer
+		address signer = ecrecover(_h, _v, _r, _s);
+		// ensure that the signer is the destionation of the channel
+		assert (signer == ercChannels[_channelId].destination);
+		// mark destination proof as submitted
+		ercChannels[_channelId].destinationProofSubmitted = true;
+		// ensure this proof can't be reused by the same sender
+		signedMessages[_channelId][_h][msg.sender] = true;
+		// notify blockchain
+		SourceProofSubmitted(_channelId, signer);
+		return true;
+	}
+
+	function verifyDoubleProof(
+		bytes32 _channelId,
+		bool    _ercChannel)
+		internal
+		returns (bool)
+	{
+		if (_ercChannel) {
+			require(ercChannels[_channelId].state == ChannelStates.opened);
+			if (ercChannels[_channelId].sourceProofSubmitted == true && ercChannels[_channelId].destinationProofSubmitted) {
+				// both proofs have been submited, lets mark as finalized
+				ercChannels[_channelId].state = ChannelStates.finalized;
+			}
+		} else {
+			require(ethChannels[_channelId].state == ChannelStates.opened);
+			if (ethChannels[_channelId].sourceProofSubmitted == true && ethChannels[_channelId].destinationProofSubmitted) {
+				// both proofs have been submitted, lets mark as finalized
+				ethChannels[_channelId].state = ChannelStates.finalized;
+			}		
+		}
+		return true;
+	}
+
 	/**tested
 		withdraw any ether in the contract, only when in developer mode
 	*/
@@ -145,7 +228,7 @@ contract PaymentChannels is Administration {
 		require(dev);
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		uint256 balance = e.balanceOf(address(this));
-		require(e.transer(msg.sender, balance));
+		require(e.transfer(msg.sender, balance));
 		return true;
 	}
 
