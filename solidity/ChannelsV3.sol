@@ -170,8 +170,8 @@ contract PaymentChannels is Administration {
 		require(msg.sender == channels[_channelId].destination);
 		// prevent a micropayment from reducing the entire balance
 		require(channels[_channelId].value > _withdrawalAmount && _withdrawalAmount > 0);
-		bytes32 memory _proof = keccak256(_channelId, _paymentString, _withdrawalAmount);
-		bytes32 memory proof = keccak256(prefix, _proof);
+		bytes32  _proof = keccak256(_channelId, msg.sender, _withdrawalAmount);
+		bytes32 proof = keccak256(prefix, _proof);
 		assert(proof == _h);
 		require(!microPaymentHashes[_channelId][_h]);
 		microPaymentHashes[_channelId][_h] = true;
