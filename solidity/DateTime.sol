@@ -37,13 +37,29 @@ contract DateTime {
             returns (uint256)
         {
             uint256 diff = _timeB - _timeA;
-            // convert to minute
-            uint256 m = diff.div(60);
-            // convert to hours
-            uint256 h = m.div(60);
-            // convert to days
-            uint256 d = h.div(24);
-            return d;
+            return (((diff / 60)/60)/24);
+        }
+
+        function retrieveTimeDifferenceInHours(
+            uint256 _timeA,
+            uint256 _timeB)
+            public
+            pure
+            returns (uint256)
+        {
+            uint256 diff = _timeB - _timeA;
+            return ((diff / 60)/60);
+        }
+
+        function retrieveTimeDifferenceInSeconds(
+            uint256 _timeA,
+            uint256 _timeB)
+            public
+            pure
+            returns (uint256)
+        {
+            uint256 diff = _timeB - _timeA;
+            return (diff / 60);
         }
 
         function isLeapYear(uint16 year) public pure returns (bool) {

@@ -24,3 +24,18 @@ KeyboardInterrupt
 >>> s
 '0x0ea7eadf8603ba2c4a5c5006571be7665020812aa7e403a614587cfe7a18146c'
 
+
+
+
+Setting up a value to be recovered through solidity:
+    function b() public returns (bytes32) {
+        return keccak256("\x19Ethereum Signed Message:\n32", keccak256("hello"));
+    }
+
+>>> Web3.soliditySha3(['string'], ['hello'])
+HexBytes('0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8')
+>>> a = Web3.toHex(Web3.soliditySha3(['string'], ['hello']))
+>>> a
+'0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8'
+>>> signature = w3.eth.account.sign(message_hexstr=a, private_key=private_key)>>> signature
+AttributeDict({'message': HexBytes('0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8'), 'messageHash': HexBytes('0x456e9aea5e197a1f1af7a3e85a3212fa4049a3ba34c2289b4c860fc0b0c64ef3'), 'r': 54150066364395414263804789069996729215089810591645507777527533480373294301640, 's': 11186801252309812249513270222306045538593842938682421499922595213176213608438, 'v': 27, 'signature': HexBytes('0x77b7d9f83081733e09ffc432157ed5b1d0940d2172e391d8b5e1ce891e5581c818bb81501da88b6deaa810fc6fd54201952f07519791367dd7c5bc4312e017f61b')})

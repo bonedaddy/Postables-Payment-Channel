@@ -56,9 +56,8 @@ contract PaymentChannels is Administration {
 	function () public payable {}
 
 
-	/**tested
-		Used to open a channeltwo-in-one vendor verification
-		Useful in situations where the vendor and purchaser don't know each other.
+	/**
+		@dev Used to open a channel with the vendor
 	*/
 	function openChannel(
 		address _vendor,

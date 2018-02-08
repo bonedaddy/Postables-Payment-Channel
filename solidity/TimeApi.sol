@@ -3,6 +3,9 @@ contract DateTimeAPI {
          *  Abstract contract for interfacing with the DateTime contract.
          *
          */
+        function retrieveTimeDifferenceInDays(uint256 _timeA, uint256 _timeB) public pure returns (uint256);
+        function retrieveTimeDifferenceInHours(uint256 _timeA, uint256 _timeB) public pure returns (uint256);
+        function retrieveTimeDifferenceInSeconds(uint256 _timeA, uint256 _timeB) public returns (uint256);
         function isLeapYear(uint16 year) constant returns (bool);
         function getYear(uint timestamp) constant returns (uint16);
         function getMonth(uint timestamp) constant returns (uint8);
