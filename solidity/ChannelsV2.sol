@@ -3,6 +3,9 @@ import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
 
+/*Hasn't been finally tested
+
+*/
 contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
@@ -14,13 +17,11 @@ contract PaymentChannels is Administration {
 
 	/** State Description
 		Initial channel state is "opened"
-		It becomes "accepted" once the vendor proof is submitted
-		It becomes "expired" if channel opener times out channel due to lack of vendor proof
-		It becomes "finalized" once both proofs have been submitted
+		It becomes "Expired" if vendor is malicious and purchaser has to forcefully retrieve their funds
 		It becomes "closed" if the channel is succesfully closed peacefully
 
-	*/					/** 0       1          2           3*/
-	enum ChannelStates { opened, expired, finalized, closed }
+	*/					/** 0       1          2*/
+	enum ChannelStates { opened, expired, closed }
 
 	ChannelStates public defaultState = ChannelStates.opened;
 
@@ -140,7 +141,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(channels[_channelId].state == ChannelStates.finalized);
+		require(channels[_channelId].state == ChannelStates.opened);
 		require(channels[_channelId].value > 0);
 		require(msg.sender == channels[_channelId].vendor);
 		uint256 deposit = channels[_channelId].value;
@@ -166,7 +167,6 @@ contract PaymentChannels is Administration {
 			require(now > (channels[_channelId].closingDate + 2 weeks));
 		}
 		require(channels[_channelId].state != ChannelStates.closed &&
-			    channels[_channelId].state != ChannelStates.finalized &&
 			    channels[_channelId].state != ChannelStates.expired);
 		channels[_channelId].state = ChannelStates.expired;
 		uint256 deposit = channels[_channelId].value;

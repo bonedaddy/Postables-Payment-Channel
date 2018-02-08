@@ -1,21 +1,16 @@
 pragma solidity 0.4.19;
 import "./Modules/Administration.sol";
-import "./DateTime.sol"; // only temporary
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
-/**
-	Add message hash verificaton when submitting a second signature.
-	first signature to submit commits the message hash, subsequent signatures mush also submit a signature
-	which verifies off that message hash. This should help reduce exploitation attempts
 
-	Implementing enums for channel states
-
-	Implement option for two step channel opening or combine both steps:
-		> open channel with vendor message
-		> open channel without vendor message, manually submit message
-
+/** not tested
+	Notes:
+		> Will be the basis of the initial production versino
+		> Will allow the vendor of a channel to withdrawn partial funds before the channel is closed so long as 
+			the appropriate proof is submitted
 */
-contract PaymentChannels is Administration, DateTime {
+
+contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
@@ -25,93 +20,50 @@ contract PaymentChannels is Administration, DateTime {
 	bool	public	dev = true;
 
 	/** State Description
-		Initial channel state is "proposed"
-		It becomes "accepted" once the vendor proof is submitted
+		Initial channel state is "opened"
 		It becomes "expired" if channel opener times out channel due to lack of vendor proof
-		It becomes "finalized" once both proofs have been submitted
 		It becomes "closed" if the channel is succesfully closed peacefully
 
-	*/
-	enum ChannelStates { proposed, accepted, expired, finalized, closed }
+	*/					/** 0       1          2*/
+	enum ChannelStates { opened, expired, closed }
 
-	ChannelStates public defaultState = ChannelStates.proposed;
+	ChannelStates public defaultState = ChannelStates.opened;
 
 	struct ChannelStruct {
 		address purchaser;
 		address vendor;
 		uint256 value;
-		uint256 expirationDate;
+		uint256 closingDate;
 		uint256 openDate;
-		uint256 microPaymentAmount;
-		uint256 microPaymentFrequency;
-		uint256 lastMicroPayment;
-		uint256 nextMicroPayment;
 		bytes32 channelId;
+		bool	purchaserProofSubmitted;
+		bool	vendorProofSubmitted;
 		ChannelStates state;
-		bool	microPaymentEnabled;
-		mapping (address => bool) proofSubmitted;
-	}
-
-	/**
-		Allows us to enable micro payment, for cheap, repeatble withdrawals before channel closure
-	*/
-	function enableMicroPayments(
-		bytes32 _channelId,
-		uint256 _microPaymentFrequencyInDays,
-		uint256 _microPaymentAmount)
-		public
-		returns (bool)
-	{
-		require(channelIds[_channelId]);
-		require(!channels[_channelId].microPaymentEnabled);
-		require(msg.sender == channels[_channelId].purchaser);
-		require(_microPaymentAmount <= channels[_channelId].value);
-		uint256 nextPayment = (now + (_microPaymentFrequencyInDays * 1 days));
-		channels[_channelId].microPaymentAmount = _microPaymentAmount;
-		channels[_channelId].microPaymentFrequency = _microPaymentFrequencyInDays * 1 days;
-		channels[_channelId].nextMicroPayment = nextPayment;
-		channels[_channelId].microPaymentEnabled = true;
-		return true;
-	}
-
-
-	/**
-		WIP
-		NOT TESTED
-	*/
-	function withdrawMicroPayment(
-		bytes32 _channelId)
-		public
-		view // silence compiler warnings until done
-		returns (bool)
-	{
-		require(channelIds[_channelId]);
-		require(channels[_channelId].microPaymentEnabled);
-		require(msg.sender == channels[_channelId].vendor);
-		require(now >= channels[_channelId].nextMicroPayment);
-		if (channels[_channelId].lastMicroPayment > 0) {
-			uint256 diffInDays = DateTime.retrieveTimeDifferenceInDays(channels[_channelId].lastMicroPayment, channels[_channelId].nextMicroPayment);
-			require(diffInDays >= 1 && diffInDays >= channels[_channelId].microPaymentFrequency);
-			uint256 payment = diffInDays.mul(channels[_channelId].microPaymentAmount);
-			payment; // silence compiler warning
-		}
 	}
 
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => ChannelStruct) public channels;
 	mapping (bytes32 => bool) private channelIds;
-
+	// prevent resubmission of the same signed messages by a particular address within a channel
+	mapping (bytes32 => mapping (bytes32 => mapping(address => bool))) private signedMessages;
 	event ChannelOpened(address indexed _purchaser, address indexed _vendor, bytes32 indexed _channelId);
 	event ChannelClosed(bytes32 indexed _channelId);
+	event ChannelExpired(bytes32 indexed _channelId);
 	event VendorProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 	event PurchaserProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
+	event FundsWithdrawn(bytes32 indexed _channelId, address indexed _recipient, uint256 _amount);
+
+	modifier bothProofsSubmitted(bytes32 _channelId) {
+		require(channels[_channelId].vendorProofSubmitted);
+		require(channels[_channelId].purchaserProofSubmitted);
+		_;
+	}
 
 	function () public payable {}
 
 
 	/**
-		Used to open a channeltwo-in-one vendor verification
-		Useful in situations where the vendor and purchaser don't know each other.
+		@dev Used to open a channel with the vendor
 	*/
 	function openChannel(
 		address _vendor,
@@ -128,11 +80,10 @@ contract PaymentChannels is Administration, DateTime {
 		// make sure the channel id doens't already exit
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
-		uint256 autoClosureDate = (now + ((_durationInDays * 1 days) * 2));
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].value = _channelValueInWei;
-		channels[channelId].expirationDate = autoClosureDate;
+		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
 		channels[channelId].channelId = channelId;
 		channels[channelId].state = defaultState;
@@ -140,68 +91,8 @@ contract PaymentChannels is Administration, DateTime {
 		return true;
 	}
 
-
 	/**
-		Used to open a channel, and submit vendor proof all at once
-		Useful in situations where there is some level of turst between vendor and purchaser
-		NOT TESTED
-	*/
-	function openChannel(
-		address _vendor,
-		uint256 _channelValueInWei,
-		uint256 _durationInDays,
-		bytes32 _h,
-		uint8   _v,
-		bytes32 _r,
-		bytes32 _s)
-		public
-		payable
-		returns (bool)
-	{
-		require(msg.value == _channelValueInWei);
-		uint256 currentDate = now;
-		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValueInWei, currentDate);
-		require(!channelIds[channelId]);
-		channelIds[channelId] = true;
-		uint256 autoClosureDate = (now + ((_durationInDays * 1 days) * 2));
-		channels[channelId].purchaser = msg.sender;
-		channels[channelId].vendor = _vendor;
-		channels[channelId].value = _channelValueInWei;
-		channels[channelId].expirationDate = autoClosureDate;
-		channels[channelId].openDate = currentDate;
-		channels[channelId].channelId = channelId;
-		ChannelOpened(msg.sender, _vendor, channelId);
-		require(submitVendorProof(_h, _v, _r, _s, channelId));
-		return true;
-	}
-
-	/**
-		Used to submit vendor proof
-	*/
-	function submitVendorProof(
-		bytes32 _h,
-		uint8   _v,
-		bytes32 _r,
-		bytes32 _s,
-		bytes32 _channelId)
-		public
-		returns (bool)
-	{
-		require(channelIds[_channelId]);
-		require(msg.sender == channels[_channelId].purchaser);
-		require(channels[_channelId].state == ChannelStates.proposed);
-		channels[_channelId].state = ChannelStates.accepted;
-		address signer = ecrecover(_h, _v, _r, _s);
-		require(signer == channels[_channelId].vendor);
-		channels[_channelId].proofSubmitted[signer] = true;
-		VendorProofSubmitted(_channelId, signer);
-		return true;
-	}
-
-	/**
-		Used to submit purchaser proof
-		Modifier (not tested yet)
+		Used by the vendor to accept the channel request
 	*/
 	function submitPurchaserProof(
 		bytes32 _h,
@@ -213,16 +104,116 @@ contract PaymentChannels is Administration, DateTime {
 		returns (bool)
 	{
 		require(channelIds[_channelId]);
-		require(msg.sender == channels[_channelId].vendor); // mod
-		require(channels[_channelId].state == ChannelStates.accepted);
-		channels[_channelId].state = ChannelStates.finalized;
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		signedMessages[_channelId][_h][msg.sender] = true;
 		address signer = ecrecover(_h, _v, _r, _s);
 		require(signer == channels[_channelId].purchaser);
-		channels[_channelId].proofSubmitted[signer] = true;
+		channels[_channelId].purchaserProofSubmitted = true;
 		PurchaserProofSubmitted(_channelId, signer);
 		return true;
 	}
 
+	/**
+		Used to submit vendor proof by channel purchaser
+	*/
+	function submitVendorProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		signedMessages[_channelId][_h][msg.sender] = true;
+		address signer = ecrecover(_h, _v, _r, _s);
+		require(signer == channels[_channelId].vendor);
+		channels[_channelId].vendorProofSubmitted = true;
+		VendorProofSubmitted(_channelId, signer);
+		return true;
+	}
+
+	/**
+		This is used to partially withdraw funds
+	*/
+	function partialWithdrawFunds(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		uint256 _amount,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(_amount <= channels[_channelId].value);
+		bytes32 proof = keccak256("\x19Ethereum Signed Message:\n32", keccak256(_amount, _channelId));
+		// lets make sure that the proof for partial funds withdrawn is legit (ie the appropriate amount)
+		require(proof == _h);
+		// now lets make sure it was signed by the right address
+		address signer = ecrecover(_h, _v, _r, _s);
+		require(signer == channels[_channelId].purchaser);
+		// reduce channel value 
+		channels[_channelId].value = channels[_channelId].value.sub(_amount);
+		FundsWithdrawn(_channelId, msg.sender, _amount);
+		msg.sender.transfer(_amount);
+		return true;
+	}
+
+
+	/**
+		This is used by a vendor to close the channel and withdraw their funds
+	*/
+	function closeChannel(
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(channels[_channelId].state == ChannelStates.opened);
+		require(channels[_channelId].value > 0);
+		require(msg.sender == channels[_channelId].vendor);
+		uint256 deposit = channels[_channelId].value;
+		channels[_channelId].value = 0;
+		channels[_channelId].state = ChannelStates.closed;
+		ChannelClosed(_channelId);
+		msg.sender.transfer(deposit);
+		return true;
+	}
+
+	/**
+		Used when the vendor has not sent their proof,  and its been 2 weeks since the closing date,
+		kill the channel
+	*/
+	function expireChannel(
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(msg.sender == channels[_channelId].purchaser);
+		if (!dev) {
+			require(now > (channels[_channelId].closingDate + 2 weeks));
+		}
+		require(channels[_channelId].state != ChannelStates.closed &&
+			    channels[_channelId].state != ChannelStates.expired);
+		channels[_channelId].state = ChannelStates.expired;
+		uint256 deposit = channels[_channelId].value;
+		channels[_channelId].value = 0;
+		ChannelExpired(_channelId);
+		msg.sender.transfer(deposit);
+		return true;
+	}
+
+	/**tested
+		withdraw any ether in the contract, only when in developer mode
+	*/
 	function withdrawEth()
 		public
 		onlyAdmin
@@ -231,84 +222,6 @@ contract PaymentChannels is Administration, DateTime {
 		require(dev);
 		msg.sender.transfer(this.balance);
 		return true;
-	}
-
-	/**GETTERS*/
-
-	function getChannelPurchaser(
-		bytes32 _channelId)
-		public
-		view
-		returns (address)
-	{
-		return channels[_channelId].purchaser;
-	}
-
-	function getChannelVendor(
-		bytes32 _channelId)
-		public
-		view
-		returns (address)
-	{
-		return channels[_channelId].vendor;
-	}
-
-	function getChannelValue(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].value;
-	}
-
-	function getExpirationDate(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].expirationDate;
-	}
-
-	function getOpenDate(
-		bytes32 _channelId)
-		public
-		view
-		returns (uint256)
-	{
-		return channels[_channelId].openDate;
-	}
-
-	function getChannelState(
-		bytes32 _channelId)
-		public
-		view
-		returns (ChannelStates)
-	{
-		return channels[_channelId].state;
-	}
-
-	function checkIfProofSubmitted(
-		bytes32 _channelId,
-		address _addr)
-		public
-		view
-		returns (bool)
-	{
-		return channels[_channelId].proofSubmitted[_addr];
-	}
-
-	function calculateChannelId(
-		address _purchaser,
-		address _vendor,
-		uint256 _channelValueInWei,
-		uint256 _date)
-		public
-		pure 
-		returns (bytes32)
-	{
-		return keccak256(_purchaser, _vendor, _channelValueInWei, _date);
 	}
 
 }
