@@ -52,6 +52,7 @@ contract PaymentChannels is Administration {
 
 	function () public payable {}
 
+
 	function openChannel(
 		address _vendor,
 		uint256 _channelValueInWei,
