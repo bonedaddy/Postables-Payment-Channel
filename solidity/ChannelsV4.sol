@@ -9,7 +9,6 @@ contract PaymentChannels is Administration {
 
 	string constant public VERSION = "0.4.1alpha";
 	
-	uint256 private channelCount;
 	bytes private prefix = "\x19Ethereum Signed Message:\n32";
 	// prevent any possible accidental triggering of developer only conditions
 	bool	public	dev = true;
