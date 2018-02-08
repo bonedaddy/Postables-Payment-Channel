@@ -11,7 +11,7 @@ contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
-	string constant public VERSION = "0.0.3alpha";
+	string constant public VERSION = "0.3.1alpha";
 	
 	uint256 private channelCount;
 	bytes private prefix = "\x19Ethereum Signed Message:\n32";
