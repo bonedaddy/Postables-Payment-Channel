@@ -7,7 +7,7 @@ contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
-	string constant public VERSION = "0.4.2alpha";
+	string constant public VERSION = "0.4.3alpha";
 	
 	bytes private prefix = "\x19Ethereum Signed Message:\n32";
 	// prevent any possible accidental triggering of developer only conditions
@@ -189,6 +189,53 @@ contract PaymentChannels is Administration {
 		if (verifyDoubleProof(_channelId, true)) {
 			assert(ercChannels[_channelId].state == ChannelStates.finalized);
 		}
+		return true;
+	}
+
+	function closeErcChannel(
+		bytes32 _channelId,
+		address _tokenAddress)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.finalized);
+		// make sure that once the channel is finalized *ONLY* the destination can withdraw funds
+		require(msg.sender == ercChannels[_channelId].destination);
+		require(_tokenAddress == ercChannels[_channelId].tokenAddress);
+		uint256 deposit = ercChannels[_channelId].value;
+		ercChannels[_channelId].value = 0;
+		// lets close the channel
+		ercChannels[_channelId].state = ChannelStates.closed;
+		ERC20Interface e = ERC20Interface(_tokenAddress);
+		ChannelClosed(_channelId);
+		TokensWithdrawn(_tokenAddress);
+		require(e.transfer(msg.sender, deposit));
+		return true;
+	}
+
+
+	/**
+		Used to withdraw whatever funds are remaining in the channel, so long as the channel is opened
+	*/
+	function expireErcChannel(
+		bytes32 _channelId,
+		address _tokenAddress)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.opened);
+		// make sure that only the source is allowed to invoke this function
+		require(msg.sender == ercChannels[_channelId].source);
+		require(_tokenAddress == ercChannels[_channelId].tokenAddress);
+		uint256 deposit = ercChannels[_channelId].value;
+		ercChannels[_channelId].value = 0;
+		ercChannels[_channelId].state = ChannelStates.expired;
+		ERC20Interface e = ERC20Interface(_tokenAddress);
+		ChannelExpired(_channelId);
+		TokensWithdrawn(_tokenAddress);
+		require(e.transfer(msg.sender, deposit));
 		return true;
 	}
 
