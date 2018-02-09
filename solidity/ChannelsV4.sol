@@ -79,6 +79,8 @@ contract PaymentChannels is Administration {
 
 	function () public payable {}
 
+	/** start of eth channel functions */
+
 	function openEthChannel(
 		address _destination,
 		uint256 _channelValueInWei,
@@ -105,6 +107,60 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	function submitEthSourceProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(ethChannels[_channelId].state == ChannelStates.opened);
+		require(!ethChannels[_channelId].sourceProofSubmitted);
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		address signer = ecrecover(_h, _v, _r, _s);
+		assert(signer == ethChannels[_channelId].source);
+		ethChannels[_channelId].sourceProofSubmitted = true;
+		signedMessages[_channelId][_h][msg.sender];
+		SourceProofSubmitted(_channelId, signer);
+		if (verifyDoubleProof(_channelId, false)) {
+			assert(ethChannels[_channelId].state == ChannelStates.finalized);
+		}
+		return true;
+	}
+
+	function submitEthDestinationProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(ethChannels[_channelId].state == ChannelStates.opened);
+		require(!ethChannels[_channelId].destinationProofSubmitted);
+		require(!signedMessages[_channelId][_h][msg.sender]);
+		address signer = ecrecover(_h, _v, _r, _s);
+		assert(signer == ethChannels[_channelId].destination);
+		ethChannels[_channelId].destinationProofSubmitted = true;
+		signedMessages[_channelId][_h][msg.sender];
+		DestinationProofSubmitted(_channelId, signer);
+		if (verifyDoubleProof(_channelId, false)) {
+			assert(ethChannels[_channelId].state == ChannelStates.finalized);
+		}
+		return true;
+	}
+
+
+	/** end of eth channel functions */
+
+
+	/** start of ERC20 channel functions */
+
 	function openErcChannel(
 		address _tokenAddress,
 		address _destination,
@@ -130,6 +186,9 @@ contract PaymentChannels is Administration {
 		return true;
 	}	
 
+	/**
+		Need to add a require function to ensure the signed message hash hasn't already been submitted
+	*/
 	function submitErcSourceProof(
 		bytes32 _h,
 		uint8   _v,
@@ -161,6 +220,9 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	/**
+		Need to add a require function to check for sign messaged hash use
+	*/
 	function submitErcDestinationProof(
 		bytes32 _h,
 		uint8   _v,
@@ -206,6 +268,7 @@ contract PaymentChannels is Administration {
 		require(channelIds[_channelId]);
 		require(ercChannels[_channelId].state == ChannelStates.opened);
 		require(ercChannels[_channelId].value > 0);
+		require(msg.sender == ercChannels[_channelId].destination);
 		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
 		bytes32 prefixedProof = keccak256(prefix, proof);
 		assert(prefixedProof == _h);
@@ -218,8 +281,6 @@ contract PaymentChannels is Administration {
 		require(e.transfer(msg.sender, _amount));
 		return true;
 	}
-
-
 
 	function closeErcChannel(
 		bytes32 _channelId,
@@ -268,6 +329,14 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	/** end of erc20 channel functions */
+
+	/** start of internal functions */
+
+	/**
+		Set _ercChannel to true if you are attempting to verify the submission status of both proofs for an ERC channel
+		Set _ercChannel to false if you are attempting to verify the submission status of both proofs for an ETH channel
+	*/
 	function verifyDoubleProof(
 		bytes32 _channelId,
 		bool    _ercChannel)
