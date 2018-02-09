@@ -192,6 +192,35 @@ contract PaymentChannels is Administration {
 		return true;
 	}
 
+	function submitErcMicroPaymentProof(
+		bytes32 _h,
+		uint8   _v,
+		bytes32 _r,
+		bytes32 _s,
+		bytes32 _channelId,
+		uint256 _paymentId,
+		uint256 _amount)
+		public
+		returns (bool)
+	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.opened);
+		require(ercChannels[_channelId].value > 0);
+		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
+		bytes32 prefixedProof = keccak256(prefix, proof);
+		assert(prefixedProof == _h);
+		address signer = ecrecover(_h, _v, _r, _s);
+		assert(signer == ercChannels[_channelId].source);
+		uint256 remainingChannelValue = ercChannels[_channelId].value.sub(_amount);
+		ercChannels[_channelId].value = remainingChannelValue;
+		ERC20Interface e = ERC20Interface(ercChannels[_channelId].tokenAddress);
+		TokensWithdrawn(ercChannels[_channelId].tokenAddress);
+		require(e.transfer(msg.sender, _amount));
+		return true;
+	}
+
+
+
 	function closeErcChannel(
 		bytes32 _channelId,
 		address _tokenAddress)
