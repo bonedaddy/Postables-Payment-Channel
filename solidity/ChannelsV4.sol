@@ -180,7 +180,8 @@ contract PaymentChannels is Administration {
 		// ensure this proof can't be reused by the same sender
 		signedMessages[_channelId][_h][msg.sender] = true;
 		// notify blockchain
-		SourceProofSubmitted(_channelId, signer);
+		DestinationProofSubmitted(_channelId, signer);
+		// verifyDoubleProof(_channelId, true);
 		return true;
 	}
 
