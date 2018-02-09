@@ -74,6 +74,8 @@ contract PaymentChannels is Administration {
 	event DestinationProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 	event SourceProofSubmitted(bytes32 indexed _channelId, address indexed _recoveredAddress);
 	event MicroPaymentWithdrawn(bytes32 indexed _channelId, uint256 _amount, uint256 _remainingChannelValue);
+	event EthWithdrawn();
+	event TokensWithdrawn(address indexed _tokenAddress);
 
 	function () public payable {}
 
@@ -153,6 +155,9 @@ contract PaymentChannels is Administration {
 		signedMessages[_channelId][_h][msg.sender] = true;
 		// notify blockchain
 		SourceProofSubmitted(_channelId, signer);
+		if (verifyDoubleProof(_channelId, true)) {
+			assert(ercChannels[_channelId].state == ChannelStates.finalized);
+		}
 		return true;
 	}
 
@@ -181,7 +186,9 @@ contract PaymentChannels is Administration {
 		signedMessages[_channelId][_h][msg.sender] = true;
 		// notify blockchain
 		DestinationProofSubmitted(_channelId, signer);
-		// verifyDoubleProof(_channelId, true);
+		if (verifyDoubleProof(_channelId, true)) {
+			assert(ercChannels[_channelId].state == ChannelStates.finalized);
+		}
 		return true;
 	}
 
@@ -196,15 +203,17 @@ contract PaymentChannels is Administration {
 			if (ercChannels[_channelId].sourceProofSubmitted == true && ercChannels[_channelId].destinationProofSubmitted) {
 				// both proofs have been submited, lets mark as finalized
 				ercChannels[_channelId].state = ChannelStates.finalized;
+				return true;
 			}
 		} else {
 			require(ethChannels[_channelId].state == ChannelStates.opened);
 			if (ethChannels[_channelId].sourceProofSubmitted == true && ethChannels[_channelId].destinationProofSubmitted) {
 				// both proofs have been submitted, lets mark as finalized
 				ethChannels[_channelId].state = ChannelStates.finalized;
+				return true;
 			}		
 		}
-		return true;
+		return false;
 	}
 
 	/**tested
@@ -216,6 +225,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(dev);
+		EthWithdrawn();
 		msg.sender.transfer(this.balance);
 		return true;
 	}
@@ -229,6 +239,7 @@ contract PaymentChannels is Administration {
 		require(dev);
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		uint256 balance = e.balanceOf(address(this));
+		TokensWithdrawn(_tokenAddress);
 		require(e.transfer(msg.sender, balance));
 		return true;
 	}
