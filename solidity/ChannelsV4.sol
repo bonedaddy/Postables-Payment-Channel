@@ -7,7 +7,7 @@ contract PaymentChannels is Administration {
 	
 	using SafeMath for uint256;
 
-	string constant public VERSION = "0.4.1alpha";
+	string constant public VERSION = "0.4.2alpha";
 	
 	bytes private prefix = "\x19Ethereum Signed Message:\n32";
 	// prevent any possible accidental triggering of developer only conditions
@@ -216,7 +216,7 @@ contract PaymentChannels is Administration {
 		return false;
 	}
 
-	/**tested
+	/**
 		withdraw any ether in the contract, only when in developer mode
 	*/
 	function withdrawEth()
