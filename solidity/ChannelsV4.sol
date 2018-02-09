@@ -126,7 +126,7 @@ contract PaymentChannels is Administration {
 		signedMessages[_channelId][_h][msg.sender];
 		SourceProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, false)) {
-			assert(ethChannels[_channelId].state == ChannelStates.finalized);
+			ethChannels[_channelId].state = ChannelStates.finalized;
 		}
 		return true;
 	}
@@ -150,7 +150,7 @@ contract PaymentChannels is Administration {
 		signedMessages[_channelId][_h][msg.sender];
 		DestinationProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, false)) {
-			assert(ethChannels[_channelId].state == ChannelStates.finalized);
+			ethChannels[_channelId].state = ChannelStates.finalized;
 		}
 		return true;
 	}
@@ -215,7 +215,7 @@ contract PaymentChannels is Administration {
 		// notify blockchain
 		SourceProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, true)) {
-			assert(ercChannels[_channelId].state == ChannelStates.finalized);
+			ercChannels[_channelId].state = ChannelStates.finalized;
 		}
 		return true;
 	}
@@ -249,7 +249,7 @@ contract PaymentChannels is Administration {
 		// notify blockchain
 		DestinationProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, true)) {
-			assert(ercChannels[_channelId].state == ChannelStates.finalized);
+			ercChannels[_channelId].state = ChannelStates.finalized;
 		}
 		return true;
 	}
@@ -341,20 +341,17 @@ contract PaymentChannels is Administration {
 		bytes32 _channelId,
 		bool    _ercChannel)
 		internal
+		view
 		returns (bool)
 	{
 		if (_ercChannel) {
 			require(ercChannels[_channelId].state == ChannelStates.opened);
 			if (ercChannels[_channelId].sourceProofSubmitted == true && ercChannels[_channelId].destinationProofSubmitted) {
-				// both proofs have been submited, lets mark as finalized
-				ercChannels[_channelId].state = ChannelStates.finalized;
 				return true;
 			}
 		} else {
 			require(ethChannels[_channelId].state == ChannelStates.opened);
 			if (ethChannels[_channelId].sourceProofSubmitted == true && ethChannels[_channelId].destinationProofSubmitted) {
-				// both proofs have been submitted, lets mark as finalized
-				ethChannels[_channelId].state = ChannelStates.finalized;
 				return true;
 			}		
 		}
