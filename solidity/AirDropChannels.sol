@@ -8,13 +8,9 @@ contract AirdropChannels is Administration {
 	using SafeMath for uint256;
 
 	string constant public VERSION = "0.0.5alpha";
-
-	uint256 constant public AIRDROPAMOUNT = 300 * 1 ether;
 	bytes private prefix = "\x19Ethereum Signed Message:\n32";
 	// prevent any possible accidental triggering of developer only conditions
 	bool	public	dev = true;
-
-	ERC20Interface public ercI = ERC20Interface(0x0994F9595D28429584BfB5FCBFEA75b9c9Ea2c24);
 
 	enum ChannelStates { opened, releasing, closed }
 
@@ -24,8 +20,10 @@ contract AirdropChannels is Administration {
 		uint256 value;
 		uint256 closingDate;
 		uint256 openDate;
+		uint256 dropAmount;
 		uint256 totalDrops;
 		bytes32 channelId;
+		ERC20Interface intf;
 		ChannelStates state;
 	}
 
@@ -47,7 +45,8 @@ contract AirdropChannels is Administration {
 	function openChannel(
 		address _tokenAddress,
 		uint256 _channelValue,
-		uint256 _durationInDays)
+		uint256 _durationInDays,
+		uint256 _dropAmount)
 		public
 		payable
 		returns (bool)
@@ -62,11 +61,13 @@ contract AirdropChannels is Administration {
 		channels[channelId].value = _channelValue;
 		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
+		channels[channelId].dropAmount = _dropAmount;
 		channels[channelId].channelId = channelId;
 		channels[channelId].state = ChannelStates.opened;
+		channels[channelId].intf = ERC20Interface(_tokenAddress);
 		channelIds[channelId] = true;
 		ChannelOpened(channelId);
-		require(ercI.transferFrom(msg.sender, address(this), _channelValue));
+		require(channels[channelId].intf.transferFrom(msg.sender, address(this), _channelValue));
 		return true;
 	}
 
@@ -120,7 +121,7 @@ contract AirdropChannels is Administration {
 		// verify we are in the correct state
 		require(channels[_channelId].state == ChannelStates.releasing);
 		// verify channel balance
-		require(channels[_channelId].value >= AIRDROPAMOUNT);
+		require(channels[_channelId].value >= channels[_channelId].dropAmount);
 		require(!receivedBonus[_channelId][msg.sender]);
 		// this ensure only the intended recipient of a signed message can redeem
 		bytes32 _proof = keccak256(_channelId, _id, msg.sender);
@@ -141,13 +142,13 @@ contract AirdropChannels is Administration {
 		// mark them as having received a bonus so they can't double dip.
 		receivedBonus[_channelId][msg.sender] = true;
 		// reduce the channel value
-		channels[_channelId].value = channels[_channelId].value.sub(AIRDROPAMOUNT);
+		channels[_channelId].value = channels[_channelId].value.sub(channels[_channelId].dropAmount);
 		// increase number of air drops
 		channels[_channelId].totalDrops = channels[_channelId].totalDrops.add(1);
 		// notify blockchain
 		AirDropDispersed(_channelId);
 		// transfer tokens
-		require(ercI.transfer(msg.sender, AIRDROPAMOUNT));
+		require(channels[_channelId].intf.transfer(msg.sender, channels[_channelId].dropAmount));
 		return true;
 	}
 
@@ -177,7 +178,7 @@ contract AirdropChannels is Administration {
 		if (channels[_channelId].value > 0 ) {
 			uint256 deposit = channels[_channelId].value;
 			channels[_channelId].value = 0;
-			require(ercI.transfer(msg.sender, deposit));
+			require(channels[_channelId].intf.transfer(msg.sender, deposit));
 		}
 		ChannelClosed(_channelId);
 		return true;
@@ -205,16 +206,6 @@ contract AirdropChannels is Administration {
 	{
 		require(dev);
 		msg.sender.transfer(this.balance);
-		return true;
-	}
-
-	function withdrawTokens()
-		public
-		onlyAdmin
-		returns (bool)
-	{
-		require(dev);
-		require(ercI.transfer(msg.sender, ercI.balanceOf(address(this))));
 		return true;
 	}
 
