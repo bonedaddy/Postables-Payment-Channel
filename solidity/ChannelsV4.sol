@@ -77,6 +77,21 @@ contract PaymentChannels is Administration {
 	event EthWithdrawn();
 	event TokensWithdrawn(address indexed _tokenAddress);
 
+	modifier ethChannelOpened(bytes32 _channelId) {
+		require(ethChannels[_channelId].state == ChannelStates.opened);
+		_;
+	}
+
+	modifier ercChannelOpened(bytes32 _channelId) {
+		require(ercChannels[_channelId].state == ChannelStates.opened);
+		_;
+	}
+
+	modifier validChannelId(bytes32 _channelId) {
+		require(channelIds[_channelId]);
+		_;
+	}
+
 	function () public payable {}
 
 	/** start of eth channel functions */
@@ -114,10 +129,10 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		bytes32 _channelId)
 		public
+		ethChannelOpened(_channelId)
+		validChannelId(_channelId)
 		returns (bool)
 	{
-		require(channelIds[_channelId]);
-		require(ethChannels[_channelId].state == ChannelStates.opened);
 		require(!ethChannels[_channelId].sourceProofSubmitted);
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		address signer = ecrecover(_h, _v, _r, _s);
@@ -138,10 +153,10 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		bytes32 _channelId)
 		public
+		ethChannelOpened(_channelId)
+		validChannelId(_channelId)
 		returns (bool)
 	{
-		require(channelIds[_channelId]);
-		require(ethChannels[_channelId].state == ChannelStates.opened);
 		require(!ethChannels[_channelId].destinationProofSubmitted);
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		address signer = ecrecover(_h, _v, _r, _s);
