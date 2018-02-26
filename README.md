@@ -1,9 +1,5 @@
 # Postables-Payment-Channel (WIP)
 
-# IMPORTANT
-# Latest working commit is https://github.com/postables/Postables-Payment-Channel/commit/0fe9b5b58d8ada582b8711e252b85b9a86130129
-
-
 # Current Task
 
 At the current moment in time I'm adapting the PPP (Postables-Payment-Channel) solution to enable what I'm calling AirDropChannels, which are open-ended, or fixed-term one-to-many channels for air dropping coins to the community. With the AirDropChannels, you will be able to airdrop to a insane amounts of addresses for merely the cost of deploying a contract, and setting it up! One side benefit is that for users to get their tokens, they have to "redeem/claim" them, which can help limit the number of airdropped tokens that sit wasted in addresses unused.
@@ -14,12 +10,17 @@ Signatures required to redeem tokens can be publicly distributed without fear of
 
 Postables Payment Channels is a set of payment channel contract whichs can be reused across multiple different transactions, and parties. Currently payment channels are limited to two participating entities. It is still very much so a work in progress and will be updated over time to include a bridge written in python.
 
-
+The latest working version is ChannelsV4.sol. If you're wondering why I'm not using modifiers, it is because due to the current design architecture, using modifiers causing stack depth issues. While I work this out, modifiers will not be used.
 
 # Files:
 
 - ChannelsV3.sol (base channel setup, no micropayment)
 - ChannelsV4.sol (base channel setup, micropayments)
+
+# To Do:
+
+- Finish eth channels in V4
+
 
 # Roadmap
 

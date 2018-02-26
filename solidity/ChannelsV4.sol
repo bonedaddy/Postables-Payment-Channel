@@ -77,41 +77,6 @@ contract PaymentChannels is Administration {
 	event EthWithdrawn();
 	event TokensWithdrawn(address indexed _tokenAddress);
 
-	modifier ethChannelOpened(bytes32 _channelId) {
-		require(ethChannels[_channelId].state == ChannelStates.opened);
-		_;
-	}
-
-	modifier ercChannelOpened(bytes32 _channelId) {
-		require(ercChannels[_channelId].state == ChannelStates.opened);
-		_;
-	}
-
-	modifier ethChannelFinalized(bytes32 _channelId) {
-		require(ethChannels[_channelId].state == ChannelStates.finalized);
-		_;
-	}
-
-	modifier ercChannelFinalized(bytes32 _channelId) {
-		require(ercChannels[_channelId].state == ChannelStates.finalized);
-		_;
-	}
-
-	modifier isEthChannelSource(bytes32 _channelId) {
-		require(msg.sender == ethChannels[_channelId].source);
-		_;
-	}
-
-	modifier isErcChannelSource(bytes32 _channelId) {
-		require(msg.sender == ercChannels[_channelId].source);
-		_;
-	}
-
-	modifier validChannelId(bytes32 _channelId) {
-		require(channelIds[_channelId]);
-		_;
-	}
-
 	function () public payable {}
 
 	/** start of eth channel functions */
@@ -149,10 +114,10 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		bytes32 _channelId)
 		public
-		ethChannelOpened(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		require(channelIds[_channelId]);
+		require(ethChannels[_channelId].state == ChannelStates.opened);
 		require(!ethChannels[_channelId].sourceProofSubmitted);
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		address signer = ecrecover(_h, _v, _r, _s);
@@ -173,10 +138,10 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		bytes32 _channelId)
 		public
-		ethChannelOpened(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		require(channelIds[_channelId]);
+		require(ethChannels[_channelId].state == ChannelStates.opened);
 		require(!ethChannels[_channelId].destinationProofSubmitted);
 		require(!signedMessages[_channelId][_h][msg.sender]);
 		address signer = ecrecover(_h, _v, _r, _s);
@@ -231,11 +196,12 @@ contract PaymentChannels is Administration {
 		bytes32 _s,
 		bytes32 _channelId)
 		public
-		ercChannelOpened(_channelId)
-		validChannelId(_channelId)
-		isErcChannelSource(_channelId)
 		returns (bool)
 	{
+		// verify correct channel id
+		require(channelIds[_channelId]);
+		// ensure channel state is opened
+		require(ercChannels[_channelId].state == ChannelStates.opened);
 		// make sure source proof hasn't already been submitted
 		require(!ercChannels[_channelId].sourceProofSubmitted);
 		// recover address of signer
@@ -264,10 +230,12 @@ contract PaymentChannels is Administration {
 		bytes32 _s, 
 		bytes32 _channelId)
 		public
-		ercChannelOpened(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		// verify correct channel id
+		require(channelIds[_channelId]);
+		// ensure channel state is opened
+		require(ercChannels[_channelId].state == ChannelStates.opened);
 		// make sure destination proof hasn't already been submitted
 		require(!ercChannels[_channelId].destinationProofSubmitted);
 		// recover address of signer
@@ -295,10 +263,10 @@ contract PaymentChannels is Administration {
 		uint256 _paymentId,
 		uint256 _amount)
 		public
-		ercChannelOpened(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.opened);
 		require(ercChannels[_channelId].value > 0);
 		require(msg.sender == ercChannels[_channelId].destination);
 		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
@@ -318,10 +286,12 @@ contract PaymentChannels is Administration {
 		bytes32 _channelId,
 		address _tokenAddress)
 		public
-		ercChannelFinalized(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.finalized);
+		// make sure that once the channel is finalized *ONLY* the destination can withdraw funds
+		require(msg.sender == ercChannels[_channelId].destination);
 		require(_tokenAddress == ercChannels[_channelId].tokenAddress);
 		uint256 deposit = ercChannels[_channelId].value;
 		ercChannels[_channelId].value = 0;
@@ -342,10 +312,10 @@ contract PaymentChannels is Administration {
 		bytes32 _channelId,
 		address _tokenAddress)
 		public
-		ercChannelOpened(_channelId)
-		validChannelId(_channelId)
 		returns (bool)
 	{
+		require(channelIds[_channelId]);
+		require(ercChannels[_channelId].state == ChannelStates.opened);
 		// make sure that only the source is allowed to invoke this function
 		require(msg.sender == ercChannels[_channelId].source);
 		require(_tokenAddress == ercChannels[_channelId].tokenAddress);
