@@ -1,5 +1,7 @@
 # Postables-Payment-Channel (WIP)
 
+# Latest Working Version: ChannelsV4.sol
+
 # Current Task
 
 At the current moment in time I'm adapting the PPP (Postables-Payment-Channel) solution to enable what I'm calling AirDropChannels, which are open-ended, or fixed-term one-to-many channels for air dropping coins to the community. With the AirDropChannels, you will be able to airdrop to a insane amounts of addresses for merely the cost of deploying a contract, and setting it up! One side benefit is that for users to get their tokens, they have to "redeem/claim" them, which can help limit the number of airdropped tokens that sit wasted in addresses unused.
@@ -16,6 +18,7 @@ The latest working version is ChannelsV4.sol. If you're wondering why I'm not us
 
 - ChannelsV3.sol (base channel setup, no micropayment)
 - ChannelsV4.sol (base channel setup, micropayments)
+- ChannelsV5.sol (WIP)
 
 # To Do:
 
