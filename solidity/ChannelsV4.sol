@@ -1,4 +1,4 @@
-pragma solidity 0.4.19;
+pragma solidity 0.4.20;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -106,7 +106,7 @@ contract PaymentChannels is Administration {
 		require(msg.sender == ercChannels[_channelId].source);
 		_;
 	}
-	
+
 	modifier validChannelId(bytes32 _channelId) {
 		require(channelIds[_channelId]);
 		_;
@@ -233,6 +233,7 @@ contract PaymentChannels is Administration {
 		public
 		ercChannelOpened(_channelId)
 		validChannelId(_channelId)
+		isErcChannelSource(_channelId)
 		returns (bool)
 	{
 		// make sure source proof hasn't already been submitted
@@ -321,8 +322,6 @@ contract PaymentChannels is Administration {
 		validChannelId(_channelId)
 		returns (bool)
 	{
-		// make sure that once the channel is finalized *ONLY* the destination can withdraw funds
-		require(msg.sender == ercChannels[_channelId].destination);
 		require(_tokenAddress == ercChannels[_channelId].tokenAddress);
 		uint256 deposit = ercChannels[_channelId].value;
 		ercChannels[_channelId].value = 0;

@@ -1,4 +1,4 @@
-pragma solidity 0.4.19;
+pragma solidity 0.4.20;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Libs/EcRecovery.sol";
