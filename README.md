@@ -1,46 +1,25 @@
-# Postables-Payment-Channel (WIP)
-
-# Latest Working Version: ChannelsV4.sol
-
-# Current Task
-
-At the current moment in time I'm adapting the PPP (Postables-Payment-Channel) solution to enable what I'm calling AirDropChannels, which are open-ended, or fixed-term one-to-many channels for air dropping coins to the community. With the AirDropChannels, you will be able to airdrop to a insane amounts of addresses for merely the cost of deploying a contract, and setting it up! One side benefit is that for users to get their tokens, they have to "redeem/claim" them, which can help limit the number of airdropped tokens that sit wasted in addresses unused.
-
-Signatures required to redeem tokens can be publicly distributed without fear of someone using them. Part of the preimages is the address of the airdrop recipient, which is verified during retrieval of the air drop tokens. However, in place of a hard-coded address, we use `msg.sender` that way we can prevent someone from using someone elses airdrop code :)
+# Postables-Payment-Channel
 
 # Introduction
 
-Postables Payment Channels is a set of payment channel contract whichs can be reused across multiple different transactions, and parties. Currently payment channels are limited to two participating entities. It is still very much so a work in progress and will be updated over time to include a bridge written in python.
+Postables-Payment-Channel is a collection of easy to use smart contracts that can be used to facilitate payment channels between two parties, while also allowing for what I deem to be "AirDropChannels". 
 
-The latest working version is ChannelsV4.sol. If you're wondering why I'm not using modifiers, it is because due to the current design architecture, using modifiers causing stack depth issues. While I work this out, modifiers will not be used.
+The payment channels are extremely robust, and allow for payment channels to be made for ANY ERC20 token, or for ethereum itself. These channels allow "micro payments" allowing a party to withdraw "micro" amounts of the channel balance. This is useful in situations where the two parties may want the trust that comes with payment channels, but don't want to end the channel by withdrawing funds from it as is typical with the standard payment channel examples. This can be very useful if you are paying a contractor, and the contractor wants the assurance that all the funds they are being promised actually exist, but you don't want to pay them for work they haven't done yet.
+
+AirDropChannels are a slightly modified payment channel concept, but instead of one-to-one unidirectional channels, it is a one-to-many unidirectional channel, allowing any number of parties to withdraw tokens from the channel! This can be used to facilitate stupidly cheap airdrops! Gone are the days of airdrops costing the token develop tens of thousands of dollars. One of the benefits to using this method of airdrops, is that unclaimed tokens are refunded back to the token developers wallet as soon as they close the channel! No  more wasted money from tokens floating around in unused addresses for ethernity! 
+
+There has been no official audit done of any of the solidity code at all, what so ever. While the logic is sound, and they have been checked with mythril/oyente, please do your own due dilligence before utilizing this code in production environments. 
 
 # Files:
 
+- AirDropChannels.sol (modified payment channel allowing for cheap airdrops)
 - ChannelsV3.sol (base channel setup, no micropayment)
 - ChannelsV4.sol (base channel setup, micropayments)
 - ChannelsV5.sol (WIP)
 
-# To Do:
-
-- Finish eth channels in V4
-
-
-# Roadmap
-
-
-- Add reusable channels
-- Add multi-party channels
-- Add a terminal based client
-
-
-
-# Contribution guides:
-TO DO
-
-
 # Bugs and Fixes:
 
-## Improper  address returned from signature verification
+## Improper  address returned from signature verification (VERY OUT OF DATE, uses an ungodly old version of web3py)
 ```
 >>> private
 b'\xd8Y\xe3T\xb8\x15\xaaJ\xe6i\xaf\xf9\x02\x8a\xbf\x89#\xf9D\x03\xdd\tc\xf2\xed\xc3\x9eQ\r\x98\xb7|'
