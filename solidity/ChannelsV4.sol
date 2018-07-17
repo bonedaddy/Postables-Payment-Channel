@@ -1,4 +1,4 @@
-pragma solidity 0.4.20;
+pragma solidity 0.4.24;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -92,7 +92,7 @@ contract PaymentChannels is Administration {
 		require(msg.value == _channelValueInWei);
 		uint256 currentDate = now;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _destination, _channelValueInWei, currentDate);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _destination, _channelValueInWei, currentDate));
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -103,7 +103,7 @@ contract PaymentChannels is Administration {
 		ethChannels[channelId].openDate = currentDate;
 		ethChannels[channelId].channelId = channelId;
 		ethChannels[channelId].state = defaultState;
-		EthChannelOpened(channelId);
+		emit EthChannelOpened(channelId);
 		return true;
 	}
 
@@ -124,7 +124,7 @@ contract PaymentChannels is Administration {
 		assert(signer == ethChannels[_channelId].source);
 		ethChannels[_channelId].sourceProofSubmitted = true;
 		signedMessages[_channelId][_h][msg.sender];
-		SourceProofSubmitted(_channelId, signer);
+		emit SourceProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, false)) {
 			ethChannels[_channelId].state = ChannelStates.finalized;
 		}
@@ -148,7 +148,7 @@ contract PaymentChannels is Administration {
 		assert(signer == ethChannels[_channelId].destination);
 		ethChannels[_channelId].destinationProofSubmitted = true;
 		signedMessages[_channelId][_h][msg.sender];
-		DestinationProofSubmitted(_channelId, signer);
+		emit DestinationProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, false)) {
 			ethChannels[_channelId].state = ChannelStates.finalized;
 		}
@@ -169,7 +169,7 @@ contract PaymentChannels is Administration {
 		public
 		returns (bool)
 	{
-		bytes32 channelId = keccak256(msg.sender, _destination, _tokenAddress, now);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _destination, _tokenAddress, now));
 		// make sure the chanel ID doesn't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -181,7 +181,7 @@ contract PaymentChannels is Administration {
 		ercChannels[channelId].openDate = now;
 		ercChannels[channelId].channelId = channelId;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
-		ErcChannelOpened(channelId);
+		emit ErcChannelOpened(channelId);
 		require(e.transferFrom(msg.sender, address(this), _channelValueInWei));
 		return true;
 	}	
@@ -213,7 +213,7 @@ contract PaymentChannels is Administration {
 		// ensure this proof can't be reused by the same sender
 		signedMessages[_channelId][_h][msg.sender] = true;
 		// notify blockchain
-		SourceProofSubmitted(_channelId, signer);
+		emit SourceProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, true)) {
 			ercChannels[_channelId].state = ChannelStates.finalized;
 		}
@@ -247,7 +247,7 @@ contract PaymentChannels is Administration {
 		// ensure this proof can't be reused by the same sender
 		signedMessages[_channelId][_h][msg.sender] = true;
 		// notify blockchain
-		DestinationProofSubmitted(_channelId, signer);
+		emit DestinationProofSubmitted(_channelId, signer);
 		if (verifyDoubleProof(_channelId, true)) {
 			ercChannels[_channelId].state = ChannelStates.finalized;
 		}
@@ -269,15 +269,15 @@ contract PaymentChannels is Administration {
 		require(ercChannels[_channelId].state == ChannelStates.opened);
 		require(ercChannels[_channelId].value > 0);
 		require(msg.sender == ercChannels[_channelId].destination);
-		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
-		bytes32 prefixedProof = keccak256(prefix, proof);
+		bytes32 proof = keccak256(abi.encodePacked(_channelId, _paymentId, _amount));
+		bytes32 prefixedProof = keccak256(abi.encodePacked(prefix, proof));
 		assert(prefixedProof == _h);
 		address signer = ecrecover(_h, _v, _r, _s);
 		assert(signer == ercChannels[_channelId].source);
 		uint256 remainingChannelValue = ercChannels[_channelId].value.sub(_amount);
 		ercChannels[_channelId].value = remainingChannelValue;
 		ERC20Interface e = ERC20Interface(ercChannels[_channelId].tokenAddress);
-		TokensWithdrawn(ercChannels[_channelId].tokenAddress);
+		emit TokensWithdrawn(ercChannels[_channelId].tokenAddress);
 		require(e.transfer(msg.sender, _amount));
 		return true;
 	}
@@ -298,8 +298,8 @@ contract PaymentChannels is Administration {
 		// lets close the channel
 		ercChannels[_channelId].state = ChannelStates.closed;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
-		ChannelClosed(_channelId);
-		TokensWithdrawn(_tokenAddress);
+		emit ChannelClosed(_channelId);
+		emit TokensWithdrawn(_tokenAddress);
 		require(e.transfer(msg.sender, deposit));
 		return true;
 	}
@@ -323,8 +323,8 @@ contract PaymentChannels is Administration {
 		ercChannels[_channelId].value = 0;
 		ercChannels[_channelId].state = ChannelStates.expired;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
-		ChannelExpired(_channelId);
-		TokensWithdrawn(_tokenAddress);
+		emit ChannelExpired(_channelId);
+		emit TokensWithdrawn(_tokenAddress);
 		require(e.transfer(msg.sender, deposit));
 		return true;
 	}
@@ -367,8 +367,8 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(dev);
-		EthWithdrawn();
-		msg.sender.transfer(this.balance);
+		emit EthWithdrawn();
+		msg.sender.transfer(address(this).balance);
 		return true;
 	}
 
@@ -381,7 +381,7 @@ contract PaymentChannels is Administration {
 		require(dev);
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		uint256 balance = e.balanceOf(address(this));
-		TokensWithdrawn(_tokenAddress);
+		emit TokensWithdrawn(_tokenAddress);
 		require(e.transfer(msg.sender, balance));
 		return true;
 	}

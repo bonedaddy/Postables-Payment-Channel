@@ -1,4 +1,4 @@
-pragma solidity 0.4.20;
+pragma solidity 0.4.24;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -53,7 +53,7 @@ contract AirdropChannels is Administration {
 	{
 		uint256 currentDate = now;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _tokenAddress, currentDate);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _tokenAddress, currentDate));
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channels[channelId].source = msg.sender;
@@ -66,7 +66,7 @@ contract AirdropChannels is Administration {
 		channels[channelId].state = ChannelStates.opened;
 		channels[channelId].intf = ERC20Interface(_tokenAddress);
 		channelIds[channelId] = true;
-		ChannelOpened(channelId);
+		emit ChannelOpened(channelId);
 		require(channels[channelId].intf.transferFrom(msg.sender, address(this), _channelValue));
 		return true;
 	}
@@ -87,9 +87,9 @@ contract AirdropChannels is Administration {
 		require(channels[_channelId].state == ChannelStates.opened);
 		require(msg.sender == channels[_channelId].source);
 		// we need to recreate the signed message hash, so first lets compute the raw hash using the preimages
-		bytes32 _proof = keccak256(_channelId, _id);
+		bytes32 _proof = keccak256(abi.encodePacked(_channelId, _id));
 		// now lets add the prefix, to get the signed message hash, or pefixed message hash
-		bytes32 proof = keccak256(prefix, _proof);
+		bytes32 proof = keccak256(abi.encodePacked(prefix, _proof));
 		// retrieve the signer of the message
 		address signer = ecrecover(_h, _v, _r, _s);
 		// if someone fails this chances are it was malicious, so lets waste their gas
@@ -99,9 +99,9 @@ contract AirdropChannels is Administration {
 		assert(proof == _h);
 		// mark channel as releasing
 		channels[_channelId].state = ChannelStates.releasing;
-		if (dev) { SigDebug(_h, _proof, proof, signer); }
-		AirDropsEnabled(_channelId);
-		SignatureRecovered(signer);
+		if (dev) { emit SigDebug(_h, _proof, proof, signer); }
+		emit AirDropsEnabled(_channelId);
+		emit SignatureRecovered(signer);
 		return true;
 	}
 
@@ -124,8 +124,8 @@ contract AirdropChannels is Administration {
 		require(channels[_channelId].value >= channels[_channelId].dropAmount);
 		require(!receivedBonus[_channelId][msg.sender]);
 		// this ensure only the intended recipient of a signed message can redeem
-		bytes32 _proof = keccak256(_channelId, _id, msg.sender);
-		bytes32 proof = keccak256(prefix, _proof);
+		bytes32 _proof = keccak256(abi.encodePacked(_channelId, _id, msg.sender));
+		bytes32 proof = keccak256(abi.encodePacked(prefix, _proof));
 		address signer = ecrecover(_h, _v, _r, _s);
 		// validate the signer
 		assert(signer == channels[_channelId].source);
@@ -146,7 +146,7 @@ contract AirdropChannels is Administration {
 		// increase number of air drops
 		channels[_channelId].totalDrops = channels[_channelId].totalDrops.add(1);
 		// notify blockchain
-		AirDropDispersed(_channelId);
+		emit AirDropDispersed(_channelId);
 		// transfer tokens
 		require(channels[_channelId].intf.transfer(msg.sender, channels[_channelId].dropAmount));
 		return true;
@@ -180,7 +180,7 @@ contract AirdropChannels is Administration {
 			channels[_channelId].value = 0;
 			require(channels[_channelId].intf.transfer(msg.sender, deposit));
 		}
-		ChannelClosed(_channelId);
+		emit ChannelClosed(_channelId);
 		return true;
 	}
 
@@ -205,7 +205,7 @@ contract AirdropChannels is Administration {
 		returns (bool)
 	{
 		require(dev);
-		msg.sender.transfer(this.balance);
+		msg.sender.transfer(address(this).balance);
 		return true;
 	}
 
