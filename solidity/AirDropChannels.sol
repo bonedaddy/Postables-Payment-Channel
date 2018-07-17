@@ -38,7 +38,7 @@ contract AirdropChannels is Administration {
 	event AirDropsEnabled(bytes32 indexed _channelId);
 	event AirDropDispersed(bytes32 indexed _channelId);
 	event SignatureRecovered(address indexed signer);
-	event SigDebug(bytes32 _h, bytes32 _proof, bytes32 proof, address signer);
+	event SigDebug(bytes32 _h, bytes32 _proof, bytes32 prefixedProof, address signer);
 
 	function () public payable {}
 
