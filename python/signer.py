@@ -30,7 +30,7 @@ choice = int(input("0\tSign message\n1\tsign micro pay\t\t"))
 if choice == 0:
 	messageTextToSign = input('What is the message you wish to sign:\t')
 	hashStr = Web3.toHex(Web3.soliditySha3(['string'], [messageTextToSign]))
-	signature = w3.eth.account.sign(message_hexstr=hashStr, private_key=private_key)
+	signature = w3.eth.account.signHash(message_hash=hashStr, private_key=private_key)
 	h, v, r, s = genSigParts(signature)
 	sigParts(h,v,r,s)
 elif choice == 1:
