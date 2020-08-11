@@ -1,25 +1,28 @@
 # Postables-Payment-Channel
 
-# Introduction
+> **warning: none of this code is audited use at your own risk**
 
-Postables-Payment-Channel is a collection of easy to use smart contracts that can be used to facilitate payment channels between two parties, while also allowing for what I deem to be "AirDropChannels". 
+Postables-Payment-Channel is a collection of easy to use smart contracts that can be used to facilitate arbitrary ERC20 and ETH payment channels between two parties, as well as an extremely cheap method of distributing airdrops using signed messages instead of mass transaction broadcasting called "AirDropChannels". 
 
-The payment channels are extremely robust, and allow for payment channels to be made for ANY ERC20 token, or for ethereum itself. These channels allow "micro payments" allowing a party to withdraw "micro" amounts of the channel balance. This is useful in situations where the two parties may want the trust that comes with payment channels, but don't want to end the channel by withdrawing funds from it as is typical with the standard payment channel examples. This can be very useful if you are paying a contractor, and the contractor wants the assurance that all the funds they are being promised actually exist, but you don't want to pay them for work they haven't done yet.
+The payment channels are robust allowing for any ERC20 to be used, along with ETH itself. The channels support micro payments allowing a party to withdraw micro amounts from the channels available balance. This is useful in situations where the two parties may want the trust that comes with payment channels, but don't want to end the channel by withdrawing funds from it as is typical with the standard payment channel examples. This can be very useful if you are paying a contractor, and the contractor wants the assurance that all the funds they are being promised actually exist, but you don't want to pay them for work they haven't done yet.
 
-AirDropChannels are a slightly modified payment channel concept, but instead of one-to-one unidirectional channels, it is a one-to-many unidirectional channel, allowing any number of parties to withdraw tokens from the channel! This can be used to facilitate stupidly cheap airdrops! Gone are the days of airdrops costing the token develop tens of thousands of dollars. One of the benefits to using this method of airdrops, is that unclaimed tokens are refunded back to the token developers wallet as soon as they close the channel! No  more wasted money from tokens floating around in unused addresses for ethernity! 
+AirDropChannels are a slightly modified payment channel concept, but instead of one-to-one unidirectional channels, it is a one-to-many unidirectional channel, allowing any number of parties to withdraw tokens from the channel! This can be used to facilitate stupidly cheap airdrops! Gone are the days of airdrops costing the token develop tens of thousands of dollars. One of the benefits to using this method of airdrops, is that unclaimed tokens are refunded back to the token developers wallet as soon as they close the channel! No  more wasted money from tokens floating around in unused addresses for ethernity!
 
-There has been no official audit done of any of the solidity code at all, what so ever. While the logic is sound, and they have been checked with mythril/oyente, please do your own due dilligence before utilizing this code in production environments. 
+In addition golang, as well as **very** out of date python bindings exist to interact with the contracts using go-ethereum (go) and web3py (python).
 
-# Files:
+# Files
 
-- AirDropChannels.sol (modified payment channel allowing for cheap airdrops)
-- ChannelsV3.sol (base channel setup, no micropayment)
-- ChannelsV4.sol (base channel setup, micropayments)
-- ChannelsV5.sol (WIP)
+- solidity/AirDropChannels.sol (modified payment channel allowing for cheap airdrops)
+- solidity/ChannelsV3.sol (base channel setup, no micropayment)
+- solidity/ChannelsV4.sol (base channel setup, micropayments)
+- solidity/ChannelsV5.sol (WIP)
 
-# Bugs and Fixes:
+# Bugs and Fixes
 
-## Improper  address returned from signature verification (VERY OUT OF DATE, uses an ungodly old version of web3py)
+## Improper  address returned from signature verification using python bindings
+
+> **note: this uses a very out of date version of web3py **
+
 ```
 >>> private
 b'\xd8Y\xe3T\xb8\x15\xaaJ\xe6i\xaf\xf9\x02\x8a\xbf\x89#\xf9D\x03\xdd\tc\xf2\xed\xc3\x9eQ\r\x98\xb7|'
