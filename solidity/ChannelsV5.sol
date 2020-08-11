@@ -1,4 +1,4 @@
-pragma solidity 0.4.20;
+pragma solidity 0.7.0;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -46,14 +46,14 @@ contract PaymentChannels is Administration {
 	mapping (bytes32 => ErcChannelStruct) public ercChannels;
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => bool) private channelIds;
-	/** prevent resubmission of the same signed messages by a particular address within a channel
+	/* prevent resubmission of the same signed messages by a particular address within a channel
 		key 1 (bytes32) = channel id
 		key 2 (bytes32) = messageHash
 		key 3 (address) = address of the submitter
 		val   (bool)    = whether or not the message has already been submitted
 	*/
 	mapping (bytes32 => mapping (bytes32 => mapping(address => bool))) private signedMessages;
-	/**
+	/*
 		keeps track of micro payment proofs and prevent them from being reused.
 		key 1 (bytes32) = channel ID
 		key 2 (bytes32) = message hash
@@ -62,7 +62,7 @@ contract PaymentChannels is Administration {
 	*/
 	mapping (bytes32 => mapping (bytes32 => bool)) private microPaymentHashes;
 
-	/** Micropayment proof
+	/* Micropayment proof
 						bytes32,   uint256,   uint256
 		hash: keccak256(channelId, paymentId, withdrawalAmount)
 	*/
@@ -77,7 +77,8 @@ contract PaymentChannels is Administration {
 	event EthWithdrawn();
 	event TokensWithdrawn(address indexed _tokenAddress);
 
-	function () public payable {}
+	fallback() external payable {}
+	receive() external payable {}
 
 	/** start of eth channel functions */
 
@@ -90,16 +91,16 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(msg.value == _channelValueInWei);
-		uint256 currentDate = now;
+		uint256 currentDate = block.timestamp;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _destination, _channelValueInWei, currentDate);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _destination, _channelValueInWei, currentDate));
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
 		ethChannels[channelId].source = msg.sender;
 		ethChannels[channelId].destination = _destination;
 		ethChannels[channelId].value = _channelValueInWei;
-		ethChannels[channelId].closingDate = (now + (_durationInDays * 1 days));
+		ethChannels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
 		ethChannels[channelId].openDate = currentDate;
 		ethChannels[channelId].channelId = channelId;
 		ethChannels[channelId].state = defaultState;
@@ -170,8 +171,8 @@ contract PaymentChannels is Administration {
 		require(ethChannels[_channelId].state == ChannelStates.opened);
 		require(ethChannels[_channelId].value > 0);
 		require(msg.sender == ethChannels[_channelId].destination);
-		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
-		bytes32 prefixedProof = keccak256(prefix, proof);
+		bytes32 proof = keccak256(abi.encodePacked(_channelId, _paymentId, _amount));
+		bytes32 prefixedProof = keccak256(abi.encodePacked(prefix, proof));
 		assert(prefixedProof == _h);
 		address signer = ecrecover(_h, _v, _r, _s);
 		assert(signer == ethChannels[_channelId].source);
@@ -195,7 +196,7 @@ contract PaymentChannels is Administration {
 		public
 		returns (bool)
 	{
-		bytes32 channelId = keccak256(msg.sender, _destination, _tokenAddress, now);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _destination, _tokenAddress, block.timestamp));
 		// make sure the chanel ID doesn't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -203,8 +204,8 @@ contract PaymentChannels is Administration {
 		ercChannels[channelId].destination = _destination;
 		ercChannels[channelId].tokenAddress = _tokenAddress;
 		ercChannels[channelId].value = _channelValueInWei;
-		ercChannels[channelId].closingDate = (now + (_durationInDays * 1 days));
-		ercChannels[channelId].openDate = now;
+		ercChannels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
+		ercChannels[channelId].openDate = block.timestamp;
 		ercChannels[channelId].channelId = channelId;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		ErcChannelOpened(channelId);
@@ -295,8 +296,8 @@ contract PaymentChannels is Administration {
 		require(ercChannels[_channelId].state == ChannelStates.opened);
 		require(ercChannels[_channelId].value > 0);
 		require(msg.sender == ercChannels[_channelId].destination);
-		bytes32 proof = keccak256(_channelId, _paymentId, _amount);
-		bytes32 prefixedProof = keccak256(prefix, proof);
+		bytes32 proof = keccak256(abi.encodePacked(_channelId, _paymentId, _amount));
+		bytes32 prefixedProof = keccak256(abi.encodePacked(prefix, proof));
 		assert(prefixedProof == _h);
 		address signer = ecrecover(_h, _v, _r, _s);
 		assert(signer == ercChannels[_channelId].source);
@@ -394,7 +395,7 @@ contract PaymentChannels is Administration {
 	{
 		require(dev);
 		EthWithdrawn();
-		msg.sender.transfer(this.balance);
+		msg.sender.transfer(address(this).balance);
 		return true;
 	}
 

@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.7.0;
 
 contract Administration {
 
@@ -26,7 +26,7 @@ contract Administration {
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
         admin = msg.sender;
     }
