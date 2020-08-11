@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.7.0;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -46,14 +46,14 @@ contract PaymentChannels is Administration {
 	mapping (bytes32 => ErcChannelStruct) public ercChannels;
 	mapping (uint256 => bytes32) private channelNumber;
 	mapping (bytes32 => bool) private channelIds;
-	/** prevent resubmission of the same signed messages by a particular address within a channel
+	/* prevent resubmission of the same signed messages by a particular address within a channel
 		key 1 (bytes32) = channel id
 		key 2 (bytes32) = messageHash
 		key 3 (address) = address of the submitter
 		val   (bool)    = whether or not the message has already been submitted
 	*/
 	mapping (bytes32 => mapping (bytes32 => mapping(address => bool))) private signedMessages;
-	/**
+	/*
 		keeps track of micro payment proofs and prevent them from being reused.
 		key 1 (bytes32) = channel ID
 		key 2 (bytes32) = message hash
@@ -62,7 +62,7 @@ contract PaymentChannels is Administration {
 	*/
 	mapping (bytes32 => mapping (bytes32 => bool)) private microPaymentHashes;
 
-	/** Micropayment proof
+	/* Micropayment proof
 						bytes32,   uint256,   uint256
 		hash: keccak256(channelId, paymentId, withdrawalAmount)
 	*/
@@ -77,7 +77,9 @@ contract PaymentChannels is Administration {
 	event EthWithdrawn();
 	event TokensWithdrawn(address indexed _tokenAddress);
 
-	function () public payable {}
+
+	fallback() external payable {}
+	receive() external payable {}
 
 	/** start of eth channel functions */
 

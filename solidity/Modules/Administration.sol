@@ -26,7 +26,7 @@ contract Administration {
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
         admin = msg.sender;
     }

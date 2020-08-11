@@ -1,4 +1,4 @@
-pragma solidity 0.4.20;
+pragma solidity 0.7.0;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 
@@ -66,9 +66,8 @@ contract PaymentChannels is Administration {
 		_;
 	}
 
-	function () public payable {}
-
-
+	fallback() external payable {}
+	receive() external payable {}
 
 	function openChannel(
 		address _destination,
@@ -81,7 +80,7 @@ contract PaymentChannels is Administration {
 		require(msg.value == _channelValueInWei);
 		uint256 currentDate = block.timestamp;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
-		bytes32 channelId = keccak256(msg.sender, _destination, _channelValueInWei, currentDate);
+		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _destination, _channelValueInWei, currentDate));
 		// make sure the channel id doens't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -174,8 +173,8 @@ contract PaymentChannels is Administration {
 		// prevent a micropayment from reducing the entire balance
 		require(channels[_channelId].value > _withdrawalAmount && _withdrawalAmount > 0);
 		// following two lines construct the proof, with prefix to validate _h
-		bytes32  _proof = keccak256(_channelId, _paymentId, _withdrawalAmount);
-		bytes32 proof = keccak256(prefix, _proof);
+		bytes32  _proof = keccak256(abi.encodePacked(_channelId, _paymentId, _withdrawalAmount));
+		bytes32 proof = keccak256(abi.encodePacked(prefix, _proof));
 		// validate the proof, if it fails most likely malicious submitter, so lets waste their gas ;)
 		assert(proof == _h);
 		// make sure the proof hasn't already bee submitted
@@ -233,7 +232,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(dev);
-		msg.sender.transfer(this.balance);
+		msg.sender.transfer(address(this).balance);
 		return true;
 	}
 
