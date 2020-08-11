@@ -61,7 +61,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(msg.value == _channelValueInWei);
-		uint256 currentDate = now;
+		uint256 currentDate = block.timestamp;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
 		bytes32 channelId = keccak256(msg.sender, _vendor, _channelValueInWei, currentDate);
 		// make sure the channel id doens't already exist
@@ -70,7 +70,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].purchaser = msg.sender;
 		channels[channelId].vendor = _vendor;
 		channels[channelId].value = _channelValueInWei;
-		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
+		channels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
 		channels[channelId].channelId = channelId;
 		channels[channelId].state = defaultState;
@@ -153,7 +153,7 @@ contract PaymentChannels is Administration {
 			revert();
 		}
 		if (!dev) {
-			require(now >= channels[_channelId].closingDate);
+			require(block.timestamp >= channels[_channelId].closingDate);
 		}
 		channels[_channelId].state = ChannelStates.expired;
 		uint256 deposit = channels[_channelId].value;

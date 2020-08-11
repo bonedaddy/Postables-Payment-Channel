@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.7.0;
 import "./Modules/Administration.sol";
 import "./Math/SafeMath.sol";
 import "./Interfaces/ERC20Interface.sol";
@@ -40,7 +40,9 @@ contract AirdropChannels is Administration {
 	event SignatureRecovered(address indexed signer);
 	event SigDebug(bytes32 _h, bytes32 _proof, bytes32 prefixedProof, address signer);
 
-	function () public payable {}
+
+	receive() external payable {}
+	fallback() external payable {}
 
 	function openChannel(
 		address _tokenAddress,
@@ -51,7 +53,7 @@ contract AirdropChannels is Administration {
 		payable
 		returns (bool)
 	{
-		uint256 currentDate = now;
+		uint256 currentDate = block.timestamp;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
 		bytes32 channelId = keccak256(abi.encodePacked(msg.sender, _tokenAddress, currentDate));
 		// make sure the channel id doens't already exist
@@ -59,7 +61,7 @@ contract AirdropChannels is Administration {
 		channels[channelId].source = msg.sender;
 		channels[channelId].tokenAddress = _tokenAddress;
 		channels[channelId].value = _channelValue;
-		channels[channelId].closingDate = (now + (_durationInDays * 1 days));
+		channels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
 		channels[channelId].openDate = currentDate;
 		channels[channelId].dropAmount = _dropAmount;
 		channels[channelId].channelId = channelId;
@@ -88,7 +90,7 @@ contract AirdropChannels is Administration {
 		require(msg.sender == channels[_channelId].source);
 		// we need to recreate the signed message hash, so first lets compute the raw hash using the preimages
 		bytes32 _proof = keccak256(abi.encodePacked(_channelId, _id));
-		// now lets add the prefix, to get the signed message hash, or pefixed message hash
+		// block.timestamp lets add the prefix, to get the signed message hash, or pefixed message hash
 		bytes32 proof = keccak256(abi.encodePacked(prefix, _proof));
 		// retrieve the signer of the message
 		address signer = ecrecover(_h, _v, _r, _s);
@@ -166,14 +168,14 @@ contract AirdropChannels is Administration {
 			    channels[_channelId].state == ChannelStates.releasing);
 		// if we aren't in dev mode, make sure the closing date has passed 
 		if (!dev) {
-			require(now > channels[_channelId].closingDate);
+			require(block.timestamp > channels[_channelId].closingDate);
 		}
 		// make sure msg.sender is channel owner
 		require(msg.sender == channels[_channelId].source);
 		address signer = ecrecover(_h, _v, _r, _s);
 		assert(signer == channels[_channelId].source);
 		channels[_channelId].state = ChannelStates.closed;
-		channels[_channelId].closingDate = now;
+		channels[_channelId].closingDate = block.timestamp;
 		// check to see if channe lvalue is greater than 0, if so withdraw remaining funds
 		if (channels[_channelId].value > 0 ) {
 			uint256 deposit = channels[_channelId].value;

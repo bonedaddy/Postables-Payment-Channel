@@ -54,7 +54,7 @@ contract PaymentChannels is Administration {
 		channels[channelId].value = _value;
 		channels[channelId].channelId = channelId;
 		channels[channelId].opened = true;
-		channels[channelId].autoClosureDate = now + 10 days;
+		channels[channelId].autoClosureDate = block.timestamp + 10 days;
 		ChannelOpened(msg.sender, _vendor, channelId);
 		return true;
 	}

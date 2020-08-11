@@ -90,7 +90,7 @@ contract PaymentChannels is Administration {
 		returns (bool)
 	{
 		require(msg.value == _channelValueInWei);
-		uint256 currentDate = now;
+		uint256 currentDate = block.timestamp;
 		// channel hash = keccak256(purchaser, vendor, channel value, date of open)
 		bytes32 channelId = keccak256(msg.sender, _destination, _channelValueInWei, currentDate);
 		// make sure the channel id doens't already exist
@@ -99,7 +99,7 @@ contract PaymentChannels is Administration {
 		ethChannels[channelId].source = msg.sender;
 		ethChannels[channelId].destination = _destination;
 		ethChannels[channelId].value = _channelValueInWei;
-		ethChannels[channelId].closingDate = (now + (_durationInDays * 1 days));
+		ethChannels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
 		ethChannels[channelId].openDate = currentDate;
 		ethChannels[channelId].channelId = channelId;
 		ethChannels[channelId].state = defaultState;
@@ -195,7 +195,7 @@ contract PaymentChannels is Administration {
 		public
 		returns (bool)
 	{
-		bytes32 channelId = keccak256(msg.sender, _destination, _tokenAddress, now);
+		bytes32 channelId = keccak256(msg.sender, _destination, _tokenAddress, block.timestamp);
 		// make sure the chanel ID doesn't already exist
 		require(!channelIds[channelId]);
 		channelIds[channelId] = true;
@@ -203,8 +203,8 @@ contract PaymentChannels is Administration {
 		ercChannels[channelId].destination = _destination;
 		ercChannels[channelId].tokenAddress = _tokenAddress;
 		ercChannels[channelId].value = _channelValueInWei;
-		ercChannels[channelId].closingDate = (now + (_durationInDays * 1 days));
-		ercChannels[channelId].openDate = now;
+		ercChannels[channelId].closingDate = (block.timestamp + (_durationInDays * 1 days));
+		ercChannels[channelId].openDate = block.timestamp;
 		ercChannels[channelId].channelId = channelId;
 		ERC20Interface e = ERC20Interface(_tokenAddress);
 		ErcChannelOpened(channelId);
