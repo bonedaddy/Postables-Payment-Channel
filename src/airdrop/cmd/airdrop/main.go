@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
+	bindings "github.com/bonedaddy/paymentchannels/bindings/airdrop"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/postables/Postables-Payment-Channel/src/airdrop/bindings"
 )
 
 func main() {
